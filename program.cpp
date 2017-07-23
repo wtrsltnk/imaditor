@@ -367,6 +367,8 @@ public:
 
     std::string _name;
     bool _visible;
+    float _alpha;
+    int _alphaMode;
 
     int _offset[2];
     int _size[2];
@@ -381,7 +383,7 @@ public:
     static Layer* fromFile(const char* filename);
 };
 
-Layer::Layer() : _visible(true), glindex(0) { }
+Layer::Layer() : _visible(true), _alpha(1.0f), _alphaMode(0), glindex(0) { }
 
 void Layer::upload()
 {
@@ -588,9 +590,6 @@ void Program::Render()
 
     ImGui_ImplGlfwGL3_NewFrame();
 
-    const ImVec4 activeButtonColor = ImVec4(0.20f, 0.20f, 0.57f, 0.60f);
-    const ImVec4 inactiveButtonColor = ImVec4(0.20f, 0.40f, 0.47f, 0.60f);
-
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 1.0f);
     {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
@@ -639,6 +638,11 @@ void Program::Render()
                     if (ImGui::MenuItem("Paste", "CTRL+V")) {}
                     ImGui::EndMenu();
                 }
+                if (ImGui::BeginMenu("Help"))
+                {
+                    if (ImGui::MenuItem("About IMaditor")) {}
+                    ImGui::EndMenu();
+                }
                 ImGui::EndMainMenuBar();
             }
         }
@@ -654,9 +658,11 @@ void Program::Render()
 
                 for (int i = 0; i < sizeof(tools) / sizeof(Tool); i++)
                 {
-                    ImGui::PushStyleColor(ImGuiCol_Button, i == selectedTool ? inactiveButtonColor : activeButtonColor);
+                    ImGui::PushID(i);
+                    ImGui::PushStyleColor(ImGuiCol_Button, i == selectedTool ? ImVec4(1.0f, 1.0f, 1.0f, 0.0f) : ImGui::GetStyle().Colors[ImGuiCol_Button]);
                     if (ImGui::Button(tools[i].icon, ImVec2(30, 30))) selectTool(i);
                     ImGui::PopStyleColor(1);
+                    ImGui::PopID();
                 }
             }
             ImGui::End();
@@ -697,20 +703,34 @@ void Program::Render()
                         if (ImGui::Button(FontAwesomeIcons::FA_ARROW_UP, ImVec2(30.0f, 30.0f))) moveCurrentLayerUp();
                         ImGui::SameLine();
                         if (ImGui::Button(FontAwesomeIcons::FA_ARROW_DOWN, ImVec2(30.0f, 30.0f))) moveCurrentLayerDown();
+
                         ImGui::Separator();
 
                         Document* doc = _documents[selectedTab];
                         for (int i = 0; i < doc->_layers.size(); i++)
                         {
+                            auto layer = doc->_layers[i];
                             ImGui::PushID(i);
-                            if (ImGui::Button(doc->_layers[i]->_visible ? FontAwesomeIcons::FA_EYE : FontAwesomeIcons::FA_EYE_SLASH, ImVec2(30, 30)))
-                                doc->_layers[i]->_visible = !doc->_layers[i]->_visible;
-                            ImGui::SameLine();
-                            ImGui::PushStyleColor(ImGuiCol_Button, i == selectedLayer ? ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] : ImVec4(0.20f, 0.40f, 0.47f, 0.0f));
-                            if (ImGui::Button(doc->_layers[i]->_name.c_str(), ImVec2(-1, 30))) selectLayer(i);
-                            ImGui::PopStyleColor(1);
+                            auto title = layer->_name;
+                            if (selectedLayer == i) title += " (selected)";
+                            if (ImGui::TreeNode("layer_node", title.c_str()))
+                            {
+                                if (ImGui::Button(layer->_visible ? FontAwesomeIcons::FA_EYE : FontAwesomeIcons::FA_EYE_SLASH, ImVec2(30, 30)))
+                                    layer->_visible = !layer->_visible;
+                                ImGui::SameLine();
+                                ImGui::PushStyleColor(ImGuiCol_Button, i == selectedLayer ? ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] : ImVec4(0.20f, 0.40f, 0.47f, 0.0f));
+                                if (ImGui::Button(layer->_name.c_str(), ImVec2(-1, 30))) selectLayer(i);
+                                ImGui::PopStyleColor(1);
+
+                                ImGui::SliderFloat("Alpha", &(layer->_alpha), 0.0f, 1.0f);
+                                ImGui::Combo("Mode", &(layer->_alphaMode), "Normal\0Darken\0Lighten\0Hue\0Saturation\0Color\0Lumminance\0Multiply\0Screen\0Dissolve\0Overlay\0Hard Light\0Soft Light\0Difference\0Dodge\0Burn\0Exclusion\0\0");
+
+                                ImGui::TreePop();
+                            }
                             ImGui::PopID();
                         }
+
+                        ImGui::Separator();
                     }
                 }
 

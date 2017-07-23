@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     if (glfwInit() == GLFW_FALSE)
         return -1;
 
-    GLFWwindow* window = glfwCreateWindow(1024, 768, "Imaditor", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1024, 768, "IMaditor", NULL, NULL);
     if (window == 0)
     {
         glfwTerminate();
