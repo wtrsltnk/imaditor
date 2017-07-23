@@ -11,7 +11,9 @@
 #include "stb_image.h"
 
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <algorithm>
 #include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -363,6 +365,9 @@ class Layer
 public:
     Layer();
 
+    std::string _name;
+    bool _visible;
+
     int _offset[2];
     int _size[2];
     int _bpp;
@@ -372,11 +377,11 @@ public:
     void upload();
     void use();
 
-    static Layer* defaultLayer();
+    static Layer* defaultLayer(int size[2]);
     static Layer* fromFile(const char* filename);
 };
 
-Layer::Layer() : glindex(0) { }
+Layer::Layer() : _visible(true), glindex(0) { }
 
 void Layer::upload()
 {
@@ -393,14 +398,14 @@ void Layer::use()
     glBindTexture(GL_TEXTURE_2D, glindex);
 }
 
-Layer* Layer::defaultLayer()
+Layer* Layer::defaultLayer(int size[2])
 {
     auto layer = new Layer();
     layer->_offset[0] = 0;
     layer->_offset[1] = 0;
 
-    layer->_size[0] = 128;
-    layer->_size[1] = 128;
+    layer->_size[0] = size[0];
+    layer->_size[1] = size[1];
 
     layer->_bpp = 4;
 
@@ -432,21 +437,41 @@ public:
     Document(const char* name);
     virtual ~Document();
 
-    std::string _name;
     std::vector<Layer*> _layers;
+    std::string _name;
+    std::string _fullPath;
+    int _size[2];
 
+    Layer* addLayer();
     void fromFile(const char* filename);
 };
 
-Document::Document() { }
+Document::Document() { _size[0] = _size[1] = 256.0f; }
 
 Document::~Document() { }
+
+Layer* Document::addLayer()
+{
+    auto layer = Layer::defaultLayer(this->_size);
+    layer->_name = std::string("Layer ") + std::to_string(this->_layers.size());
+    this->_layers.push_back(layer);
+
+    return layer;
+}
+
+void Document::fromFile(const char* filename)
+{
+    auto layer = Layer::fromFile(filename);
+    layer->_name = std::string("Layer ") + std::to_string(this->_layers.size());
+    this->_layers.push_back(layer);
+}
 
 static int selectedTab = 0;
 static const char** tabNames = nullptr;
 static int tabNameCount = 0;
 static int tabNameAllocCount = 0;
 static std::vector<Document*> _documents;
+static int selectedLayer = 0;
 
 void addDocument(Document* doc)
 {
@@ -471,16 +496,73 @@ void addDocument(Document* doc)
     ++tabNameCount;
 }
 
+void addLayer()
+{
+    if (_documents.size() > 0)
+    {
+        Document* doc = _documents[selectedTab];
+        doc->addLayer();
+    }
+}
+
+void removeCurrentLayer()
+{
+    if (_documents.size() > 0)
+    {
+        Document* doc = _documents[selectedTab];
+        if (doc->_layers.size() > 1)
+        {
+            doc->_layers.erase(doc->_layers.begin() + selectedLayer);
+            if (selectedLayer > 0) selectedLayer--;
+        }
+    }
+}
+
+void moveCurrentLayerUp()
+{
+    if (_documents.size() > 0)
+    {
+        Document* doc = _documents[selectedTab];
+        if (selectedLayer >= 1)
+        {
+            auto tmp = doc->_layers[selectedLayer];
+            doc->_layers[selectedLayer] = doc->_layers[selectedLayer-1];
+            doc->_layers[selectedLayer-1] = tmp;
+            selectedLayer--;
+        }
+    }
+}
+
+void moveCurrentLayerDown()
+{
+    if (_documents.size() > 0)
+    {
+        Document* doc = _documents[selectedTab];
+        if (selectedLayer < doc->_layers.size()-1)
+        {
+            auto tmp = doc->_layers[selectedLayer];
+            doc->_layers[selectedLayer] = doc->_layers[selectedLayer+1];
+            doc->_layers[selectedLayer+1] = tmp;
+            selectedLayer++;
+        }
+    }
+}
+
+void selectLayer(int index) { selectedLayer = index; }
+
 void Program::Render()
 {
     glViewport(0, 0, this->_display_w, this->_display_h);
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     auto projection = glm::ortho(
                 -(this->_display_w/2.0f),
-                (this->_display_w/2.0f),
-                (this->_display_h/2.0f),
+                 (this->_display_w/2.0f),
+                 (this->_display_h/2.0f),
                 -(this->_display_h/2.0f));
     glUseProgram(program);
     glUniformMatrix4fv(u_projection, 1, GL_FALSE, &(projection[0][0]));
@@ -493,6 +575,7 @@ void Program::Render()
         Document* doc = _documents[selectedTab];
         for (Layer* layer : doc->_layers)
         {
+            if (!layer->_visible) continue;
             layer->use();
 
             auto view = glm::scale(glm::mat4(), glm::vec3(layer->_size[0], layer->_size[1], 1.0f));
@@ -510,111 +593,135 @@ void Program::Render()
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 1.0f);
     {
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
-    {
-        if (ImGui::BeginMainMenuBar())
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
         {
-            if (ImGui::BeginMenu("File"))
+            if (ImGui::BeginMainMenuBar())
             {
-                if (ImGui::MenuItem("New", "CTRL+N"))
+                if (ImGui::BeginMenu("File"))
                 {
-                    auto doc = new Document();
-                    doc->_name = "New";
-                    doc->_layers.push_back(Layer::defaultLayer());
-                    addDocument(doc);
-                }
-                if (ImGui::MenuItem("Open", "CTRL+O"))
-                {
-                    nfdchar_t *outPath = NULL;
-                    nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
-
-                    if (result == NFD_OKAY)
+                    if (ImGui::MenuItem("New", "CTRL+N"))
                     {
                         auto doc = new Document();
-                        doc->_name = outPath;
-                        doc->_layers.push_back(Layer::fromFile(outPath));
+                        doc->_name = "New";
+                        doc->_fullPath = "New.png";
+                        doc->addLayer();
                         addDocument(doc);
                     }
+                    if (ImGui::MenuItem("Open", "CTRL+O"))
+                    {
+                        nfdchar_t *outPath = NULL;
+                        nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
+
+                        if (result == NFD_OKAY)
+                        {
+                            auto doc = new Document();
+                            doc->_fullPath = outPath;
+                            std::replace(doc->_fullPath.begin(), doc->_fullPath.end(), '\\', '/');
+                            doc->_name = doc->_fullPath.substr(doc->_fullPath.find_last_of('/') + 1);
+                            doc->fromFile(outPath);
+                            addDocument(doc);
+                        }
+                    }
+                    if (ImGui::MenuItem("Save", "CTRL+S")) {}
+                    if (ImGui::MenuItem("Save As..", "CTRL+SHIFT+Z")) {}
+                    if (ImGui::MenuItem("Close")) {}
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Quit")) {}
+                    ImGui::EndMenu();
                 }
-                if (ImGui::MenuItem("Save", "CTRL+S")) {}
-                if (ImGui::MenuItem("Save As..", "CTRL+SHIFT+Z")) {}
-                if (ImGui::MenuItem("Close")) {}
-                ImGui::Separator();
-                if (ImGui::MenuItem("Quit")) {}
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Edit"))
-            {
-                if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-                if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
-                ImGui::Separator();
-                if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-                if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-                if (ImGui::MenuItem("Paste", "CTRL+V")) {}
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
-        }
-    }
-    ImGui::PopStyleColor();
-
-    const int dockbarWidth = 250;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.20f, 0.20f, 0.47f, 0.60f));
-    {
-        ImGui::Begin("toolbar", &windowConfig.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
-        {
-            ImGui::SetWindowPos(ImVec2(0, 22));
-            ImGui::SetWindowSize(ImVec2(45, this->_display_h - 22));
-
-            for (int i = 0; i < sizeof(tools) / sizeof(Tool); i++)
-            {
-                ImGui::PushStyleColor(ImGuiCol_Button, i == selectedTool ? inactiveButtonColor : activeButtonColor);
-                if (ImGui::Button(tools[i].icon, ImVec2(30, 30))) selectTool(i);
-                ImGui::PopStyleColor(1);
+                if (ImGui::BeginMenu("Edit"))
+                {
+                    if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
+                    if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Cut", "CTRL+X")) {}
+                    if (ImGui::MenuItem("Copy", "CTRL+C")) {}
+                    if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMainMenuBar();
             }
         }
-        ImGui::End();
-
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
-        ImGui::Begin("content", &(windowConfig.show_listeditor), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
-        {
-            ImGui::SetWindowPos(ImVec2(45, 22));
-            ImGui::SetWindowSize(ImVec2(this->_display_w - 45 - dockbarWidth, this->_display_h - 22));
-
-            if (tabNameCount > 0)
-            {
-                ImGui::TabLabels(tabNames, tabNameCount, selectedTab);
-            }
-        }
-        ImGui::End();
         ImGui::PopStyleColor();
 
-        ImGui::Begin("dockbar", &(windowConfig.show_browser), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+        const int dockbarWidth = 250;
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.20f, 0.20f, 0.47f, 0.60f));
         {
-            ImGui::SetWindowPos(ImVec2(this->_display_w - dockbarWidth, 22));
-            ImGui::SetWindowSize(ImVec2(dockbarWidth, this->_display_h - 22));
-
-            if (ImGui::CollapsingHeader("Color options", "colors", true, true))
+            ImGui::Begin("toolbar", &windowConfig.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::ColorEdit3("Fore", foreColor);
-                ImGui::ColorEdit3("Back", backColor);
+                ImGui::SetWindowPos(ImVec2(0, 22));
+                ImGui::SetWindowSize(ImVec2(45, this->_display_h - 22));
 
-                ImGui::TextWrapped("This window is being created by the ShowTestWindow() function. Please refer to the code for programming reference.\n\nUser Guide:");
+                for (int i = 0; i < sizeof(tools) / sizeof(Tool); i++)
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Button, i == selectedTool ? inactiveButtonColor : activeButtonColor);
+                    if (ImGui::Button(tools[i].icon, ImVec2(30, 30))) selectTool(i);
+                    ImGui::PopStyleColor(1);
+                }
             }
+            ImGui::End();
 
-            if (ImGui::CollapsingHeader("Layer options", "layers", true, true))
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
+            ImGui::Begin("content", &(windowConfig.show_listeditor), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::TextWrapped("This window is being created by the ShowTestWindow() function. Please refer to the code for programming reference.\n\nUser Guide:");
-            }
+                ImGui::SetWindowPos(ImVec2(45, 22));
+                ImGui::SetWindowSize(ImVec2(this->_display_w - 45 - dockbarWidth, this->_display_h - 22));
 
-            if (ImGui::CollapsingHeader("Tool options", "tools", true, true))
-            {
-                ImGui::TextWrapped("This window is being created by the ShowTestWindow() function. Please refer to the code for programming reference.\n\nUser Guide:");
+                if (tabNameCount > 0)
+                {
+                    ImGui::TabLabels(tabNames, tabNameCount, selectedTab);
+                }
             }
+            ImGui::End();
+            ImGui::PopStyleColor();
+
+            ImGui::Begin("dockbar", &(windowConfig.show_browser), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+            {
+                ImGui::SetWindowPos(ImVec2(this->_display_w - dockbarWidth, 22));
+                ImGui::SetWindowSize(ImVec2(dockbarWidth, this->_display_h - 22));
+
+                if (ImGui::CollapsingHeader("Color options", "colors", true, true))
+                {
+                    ImGui::ColorEdit3("Fore", foreColor);
+                    ImGui::ColorEdit3("Back", backColor);
+                }
+
+                if (_documents.size() > 0)
+                {
+                    if (ImGui::CollapsingHeader("Layer options", "layers", true, true))
+                    {
+                        if (ImGui::Button(FontAwesomeIcons::FA_PLUS, ImVec2(30.0f, 30.0f))) addLayer();
+                        ImGui::SameLine();
+                        if (ImGui::Button(FontAwesomeIcons::FA_MINUS, ImVec2(30.0f, 30.0f))) removeCurrentLayer();
+                        ImGui::SameLine();
+                        if (ImGui::Button(FontAwesomeIcons::FA_ARROW_UP, ImVec2(30.0f, 30.0f))) moveCurrentLayerUp();
+                        ImGui::SameLine();
+                        if (ImGui::Button(FontAwesomeIcons::FA_ARROW_DOWN, ImVec2(30.0f, 30.0f))) moveCurrentLayerDown();
+                        ImGui::Separator();
+
+                        Document* doc = _documents[selectedTab];
+                        for (int i = 0; i < doc->_layers.size(); i++)
+                        {
+                            ImGui::PushID(i);
+                            if (ImGui::Button(doc->_layers[i]->_visible ? FontAwesomeIcons::FA_EYE : FontAwesomeIcons::FA_EYE_SLASH, ImVec2(30, 30)))
+                                doc->_layers[i]->_visible = !doc->_layers[i]->_visible;
+                            ImGui::SameLine();
+                            ImGui::PushStyleColor(ImGuiCol_Button, i == selectedLayer ? ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] : ImVec4(0.20f, 0.40f, 0.47f, 0.0f));
+                            if (ImGui::Button(doc->_layers[i]->_name.c_str(), ImVec2(-1, 30))) selectLayer(i);
+                            ImGui::PopStyleColor(1);
+                            ImGui::PopID();
+                        }
+                    }
+                }
+
+                if (ImGui::CollapsingHeader("Tool options", "tools", true, true))
+                {
+                    ImGui::TextWrapped("This window is being created by the ShowTestWindow() function. Please refer to the code for programming reference.\n\nUser Guide:");
+                }
+            }
+            ImGui::End();
         }
-        ImGui::End();
-    }
-    ImGui::PopStyleColor();
+        ImGui::PopStyleColor();
     }
     ImGui::PopStyleVar();
 
