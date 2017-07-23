@@ -234,7 +234,7 @@ void Program::onResize(int width, int height)
 }
 
 static std::string vertexGlsl = "#version 150\n\
-        in vec3 vertex;\
+in vec3 vertex;\
 in vec2 texcoord;\
 \
 uniform mat4 u_projection;\
@@ -249,7 +249,7 @@ void main()\
 }";
 
 static std::string fragmentGlsl = "#version 150\n\
-        uniform sampler2D u_texture;\
+uniform sampler2D u_texture;\
 \
 in vec2 f_texcoord;\
 \
@@ -321,8 +321,6 @@ bool Program::SetUp()
 
     return true;
 }
-
-const ImVec4 clear_color = ImColor(114, 144, 154);
 
 static struct Tool { const char* name; const char* icon; } tools[] = {
 { "Arrow", FontAwesomeIcons::FA_MOUSE_POINTER },
@@ -555,7 +553,7 @@ void selectLayer(int index) { selectedLayer = index; }
 void Program::Render()
 {
     glViewport(0, 0, this->_display_w, this->_display_h);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_BLEND);
