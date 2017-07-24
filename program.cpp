@@ -670,22 +670,18 @@ void Program::Render()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    auto projection = glm::ortho(
-                -(this->_display_w/2.0f),
-                 (this->_display_w/2.0f),
-                 (this->_display_h/2.0f),
-                -(this->_display_h/2.0f));
-
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
     if (selectedTab < _documents.size())
     {
         Document* doc = _documents[selectedTab];
 
         auto zoom = glm::scale(glm::mat4(), glm::vec3(windowConfig.zoom / 100.0f));
         auto translate = glm::translate(zoom, glm::vec3(windowConfig.translatex, windowConfig.translatey, 0.0f));
+        auto projection = glm::ortho(-(_display_w/2.0f), (_display_w/2.0f),
+                                     (_display_h/2.0f), -(_display_h/2.0f));
+
+        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
 
         // render blocks on document background
         auto full = glm::scale(glm::mat4(), glm::vec3(doc->_size[0], doc->_size[1], 1.0f));
@@ -706,9 +702,9 @@ void Program::Render()
             glUniformMatrix4fv(u_view, 1, GL_FALSE, &(view[0][0]));
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
     }
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
 
     ImGui_ImplGlfwGL3_NewFrame();
 
