@@ -263,6 +263,7 @@ void Program::onScroll(int x, int y)
     else
     {
         windowConfig.zoom += (y * 5);
+        if (windowConfig.zoom < 10) windowConfig.zoom = 10;
     }
 }
 
