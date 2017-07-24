@@ -656,12 +656,15 @@ void moveCurrentLayerDown()
     }
 }
 
-void selectLayer(int index) { selectedLayer = index; }
+void selectLayer(int index)
+{
+    selectedLayer = index;
+}
 
 void Program::Render()
 {
     glViewport(0, 0, this->_display_w, this->_display_h);
-    glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
+    glClearColor(114/255.0f, 144/255.0f, 154/255.0f, 255/255.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_BLEND);
@@ -677,12 +680,12 @@ void Program::Render()
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
 
-    auto zoom = glm::scale(glm::mat4(), glm::vec3(windowConfig.zoom / 100.0f));
-    auto translate = glm::translate(zoom, glm::vec3(windowConfig.translatex, windowConfig.translatey, 0.0f));
-
     if (selectedTab < _documents.size())
     {
         Document* doc = _documents[selectedTab];
+
+        auto zoom = glm::scale(glm::mat4(), glm::vec3(windowConfig.zoom / 100.0f));
+        auto translate = glm::translate(zoom, glm::vec3(windowConfig.translatex, windowConfig.translatey, 0.0f));
 
         // render blocks on document background
         auto full = glm::scale(glm::mat4(), glm::vec3(doc->_size[0], doc->_size[1], 1.0f));
