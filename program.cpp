@@ -189,6 +189,13 @@ struct {
     bool show_browser = false;
     float w = 200.0f;
     float h = 300.0f;
+    int mousex;
+    int mousey;
+    int zoom = 100;
+    int translatex = 0;
+    int translatey = 0;
+    bool shiftPressed = false;
+    bool ctrlPressed = false;
 
 } windowConfig;
 
@@ -210,6 +217,20 @@ void Program::KeyActionCallback(GLFWwindow* window, int key, int scancode, int a
     if (app != nullptr) app->onKeyAction(key, scancode, action, mods);
 }
 
+void Program::CursorPosCallback(GLFWwindow* window, double x, double y)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onMouseMove(int(x), int(y));
+}
+
+void Program::ScrollCallback(GLFWwindow* window, double x, double y)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onScroll(int(x), int(y));
+}
+
 void Program::ResizeCallback(GLFWwindow* window, int width, int height)
 {
     auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
@@ -218,7 +239,32 @@ void Program::ResizeCallback(GLFWwindow* window, int width, int height)
 }
 
 void Program::onKeyAction(int key, int scancode, int action, int mods)
-{ }
+{
+    windowConfig.shiftPressed = (mods & GLFW_MOD_SHIFT);
+    windowConfig.ctrlPressed = (mods & GLFW_MOD_CONTROL);
+}
+
+void Program::onMouseMove(int x, int y)
+{
+    windowConfig.mousex = x;
+    windowConfig.mousey = y;
+}
+
+void Program::onScroll(int x, int y)
+{
+    if (windowConfig.shiftPressed)
+    {
+        windowConfig.translatex += (y * 5);
+    }
+    else if (windowConfig.ctrlPressed)
+    {
+        windowConfig.translatey += (y * 5);
+    }
+    else
+    {
+        windowConfig.zoom += (y * 5);
+    }
+}
 
 void Program::onResize(int width, int height)
 {
@@ -260,6 +306,37 @@ void main()\
     color = texture(u_texture, f_texcoord);\
 }";
 
+
+
+
+static std::string vertexBlocksGlsl = "#version 150\n\
+in vec3 vertex;\
+in vec2 texcoord;\
+\
+uniform mat4 u_projection;\
+\
+out vec2 f_texcoord;\
+\
+void main()\
+{\
+    gl_Position = u_projection * vec4(vertex.xyz, 1.0);\
+    f_texcoord = texcoord;\
+}";
+
+static std::string fragmentBlocksGlsl = "#version 150\n\
+\
+in vec2 f_texcoord;\
+out vec4 color;\
+\
+void main()\
+{\
+    if (int(gl_FragCoord.x) % 32 < 16 && int(gl_FragCoord.y) % 32 > 16\
+        || int(gl_FragCoord.x) % 32 > 16 && int(gl_FragCoord.y) % 32 < 16)\
+        color = vec4(0.9f, 0.9f, 0.92f, 1.0f);\
+    else\
+        color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\
+}";
+
 static float g_vertex_buffer_data[] = {
     0.5f,  0.5f,  0.0f,  1.0f, 1.0f,  0.0f,
     0.5f, -0.5f,  0.0f,  1.0f, 0.0f,  0.0f,
@@ -268,6 +345,7 @@ static float g_vertex_buffer_data[] = {
 };
 
 static GLuint program;
+static GLuint blocksProgram;
 static GLuint u_projection;
 static GLuint u_view;
 static GLuint vertexbuffer;
@@ -287,6 +365,7 @@ bool Program::SetUp()
     static const ImWchar icons_ranges_googleicon[] = { 0xe000, 0xeb4c, 0 }; // will not be copied by AddFont* so keep
     io.Fonts->AddFontFromFileTTF("../imaditor/MaterialIcons-Regular.ttf", 18.0f, &config, icons_ranges_googleicon);
 
+    blocksProgram = LoadShaderProgram(vertexBlocksGlsl.c_str(), fragmentBlocksGlsl.c_str());
     program = LoadShaderProgram(vertexGlsl.c_str(), fragmentGlsl.c_str());
     u_projection = glGetUniformLocation(program, "u_projection");
     u_view = glGetUniformLocation(program, "u_view");
@@ -388,6 +467,7 @@ void Layer::upload()
     glGenTextures(1, &glindex);
     glBindTexture(GL_TEXTURE_2D, glindex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     GLint format = GL_RGBA;
     if (this->_bpp == 3) format = GL_RGB;
     glTexImage2D(GL_TEXTURE_2D, 0, format, this->_size[0], this->_size[1], 0, format, GL_UNSIGNED_BYTE, this->_data);
@@ -463,6 +543,8 @@ void Document::fromFile(const char* filename)
 {
     auto layer = Layer::fromFile(filename);
     layer->_name = std::string("Layer ") + std::to_string(this->_layers.size());
+    this->_size[0] = layer->_size[0];
+    this->_size[1] = layer->_size[1];
     this->_layers.push_back(layer);
 }
 
@@ -494,6 +576,31 @@ void addDocument(Document* doc)
     tabNames[tabNameCount] = new char[strlen(doc->_name.c_str()) + 1];
     strcpy(((char*)tabNames[tabNameCount]), doc->_name.c_str());
     ++tabNameCount;
+}
+
+void newDocument()
+{
+    auto doc = new Document();
+    doc->_name = "New";
+    doc->_fullPath = "New.png";
+    doc->addLayer();
+    addDocument(doc);
+}
+
+void openDocument()
+{
+    nfdchar_t *outPath = NULL;
+    nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
+
+    if (result == NFD_OKAY)
+    {
+        auto doc = new Document();
+        doc->_fullPath = outPath;
+        std::replace(doc->_fullPath.begin(), doc->_fullPath.end(), '\\', '/');
+        doc->_name = doc->_fullPath.substr(doc->_fullPath.find_last_of('/') + 1);
+        doc->fromFile(outPath);
+        addDocument(doc);
+    }
 }
 
 void addLayer()
@@ -564,15 +671,28 @@ void Program::Render()
                  (this->_display_w/2.0f),
                  (this->_display_h/2.0f),
                 -(this->_display_h/2.0f));
-    glUseProgram(program);
-    glUniformMatrix4fv(u_projection, 1, GL_FALSE, &(projection[0][0]));
 
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
+
+    auto zoom = glm::scale(glm::mat4(), glm::vec3(windowConfig.zoom / 100.0f));
+    auto translate = glm::translate(zoom, glm::vec3(windowConfig.translatex, windowConfig.translatey, 0.0f));
+
     if (selectedTab < _documents.size())
     {
         Document* doc = _documents[selectedTab];
+
+        // render blocks on document background
+        auto full = glm::scale(glm::mat4(), glm::vec3(doc->_size[0], doc->_size[1], 1.0f));
+        glUseProgram(blocksProgram);
+        glUniformMatrix4fv(u_projection, 1, GL_FALSE, &((projection * translate * full)[0][0]));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        // render all layers
+        glUseProgram(program);
+        glUniformMatrix4fv(u_projection, 1, GL_FALSE, &((projection * translate)[0][0]));
+
         for (Layer* layer : doc->_layers)
         {
             if (!layer->_visible) continue;
@@ -596,29 +716,8 @@ void Program::Render()
             {
                 if (ImGui::BeginMenu("File"))
                 {
-                    if (ImGui::MenuItem("New", "CTRL+N"))
-                    {
-                        auto doc = new Document();
-                        doc->_name = "New";
-                        doc->_fullPath = "New.png";
-                        doc->addLayer();
-                        addDocument(doc);
-                    }
-                    if (ImGui::MenuItem("Open", "CTRL+O"))
-                    {
-                        nfdchar_t *outPath = NULL;
-                        nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
-
-                        if (result == NFD_OKAY)
-                        {
-                            auto doc = new Document();
-                            doc->_fullPath = outPath;
-                            std::replace(doc->_fullPath.begin(), doc->_fullPath.end(), '\\', '/');
-                            doc->_name = doc->_fullPath.substr(doc->_fullPath.find_last_of('/') + 1);
-                            doc->fromFile(outPath);
-                            addDocument(doc);
-                        }
-                    }
+                    if (ImGui::MenuItem("New", "CTRL+N")) newDocument();
+                    if (ImGui::MenuItem("Open", "CTRL+O")) openDocument();
                     if (ImGui::MenuItem("Save", "CTRL+S")) {}
                     if (ImGui::MenuItem("Save As..", "CTRL+SHIFT+Z")) {}
                     if (ImGui::MenuItem("Close")) {}
@@ -652,7 +751,7 @@ void Program::Render()
             ImGui::Begin("toolbar", &windowConfig.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(0, 22));
-                ImGui::SetWindowSize(ImVec2(45, this->_display_h - 22));
+                ImGui::SetWindowSize(ImVec2(45, this->_display_h - 57));
 
                 for (int i = 0; i < sizeof(tools) / sizeof(Tool); i++)
                 {
@@ -669,7 +768,7 @@ void Program::Render()
             ImGui::Begin("content", &(windowConfig.show_listeditor), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(45, 22));
-                ImGui::SetWindowSize(ImVec2(this->_display_w - 45 - dockbarWidth, this->_display_h - 22));
+                ImGui::SetWindowSize(ImVec2(this->_display_w - 45 - dockbarWidth, this->_display_h - 57));
 
                 if (tabNameCount > 0)
                 {
@@ -682,7 +781,7 @@ void Program::Render()
             ImGui::Begin("dockbar", &(windowConfig.show_browser), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(this->_display_w - dockbarWidth, 22));
-                ImGui::SetWindowSize(ImVec2(dockbarWidth, this->_display_h - 22));
+                ImGui::SetWindowSize(ImVec2(dockbarWidth, this->_display_h - 57));
 
                 if (ImGui::CollapsingHeader("Color options", "colors", true, true))
                 {
@@ -736,6 +835,21 @@ void Program::Render()
                 {
                     ImGui::TextWrapped("This window is being created by the ShowTestWindow() function. Please refer to the code for programming reference.\n\nUser Guide:");
                 }
+            }
+            ImGui::End();
+
+            ImGui::Begin("statusbar", &(windowConfig.show_listeditor), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+            {
+                ImGui::SetWindowPos(ImVec2(0, this->_display_h - 35));
+                ImGui::SetWindowSize(ImVec2(this->_display_w, 35));
+
+                ImGui::Columns(3);
+                ImGui::Text("status bar");
+                ImGui::NextColumn();
+                ImGui::SliderInt("zoom", &(windowConfig.zoom), 10, 400);
+                ImGui::NextColumn();
+                ImGui::Text("mouse: %d %d", windowConfig.mousex, windowConfig.mousey);
+                ImGui::Columns(1);
             }
             ImGui::End();
         }

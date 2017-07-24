@@ -28,6 +28,8 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfwGL3_Init(window, true);
 
     glfwSetKeyCallback(window, Program::KeyActionCallback);
+    glfwSetCursorPosCallback(window, Program::CursorPosCallback);
+    glfwSetScrollCallback(window, Program::ScrollCallback);
 
     glfwSetWindowSizeCallback(window, Program::ResizeCallback);
     glfwMakeContextCurrent(window);
