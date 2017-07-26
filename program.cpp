@@ -9,6 +9,8 @@
 #include "imgui_tabs.h"
 #include "font-icons.h"
 #include "shader.h"
+#include "tools.h"
+#include "actions/baseaction.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -20,6 +22,8 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+static Tools tools;
 
 struct {
     bool show_toolbar = false;
@@ -54,78 +58,8 @@ Program::~Program()
     glfwSetWindowUserPointer(this->_window, nullptr);
 }
 
-void Program::KeyActionCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
-
-    if (app != nullptr) app->onKeyAction(key, scancode, action, mods);
-}
-
-void Program::CursorPosCallback(GLFWwindow* window, double x, double y)
-{
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
-
-    if (app != nullptr) app->onMouseMove(int(x), int(y));
-}
-
-void Program::ScrollCallback(GLFWwindow* window, double x, double y)
-{
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
-
-    if (app != nullptr) app->onScroll(int(x), int(y));
-}
-
-void Program::ResizeCallback(GLFWwindow* window, int width, int height)
-{
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
-
-    if (app != nullptr) app->onResize(width, height);
-}
-
-void Program::onKeyAction(int key, int scancode, int action, int mods)
-{
-    windowConfig.shiftPressed = (mods & GLFW_MOD_SHIFT);
-    windowConfig.ctrlPressed = (mods & GLFW_MOD_CONTROL);
-}
-
-void Program::onMouseMove(int x, int y)
-{
-    windowConfig.mousex = x;
-    windowConfig.mousey = y;
-}
-
-void Program::onScroll(int x, int y)
-{
-    if (windowConfig.shiftPressed)
-    {
-        windowConfig.translatex += (y * 5);
-    }
-    else if (windowConfig.ctrlPressed)
-    {
-        windowConfig.translatey += (y * 5);
-    }
-    else
-    {
-        windowConfig.zoom += (y * 5);
-        if (windowConfig.zoom < 10) windowConfig.zoom = 10;
-    }
-}
-
-void Program::onResize(int width, int height)
-{
-    float aspectw = float(width) / float(this->_display_w);
-    float aspecth = float(height) / float(this->_display_h);
-    windowConfig.w *= aspectw;
-    windowConfig.h *= aspecth;
-
-    this->_display_w = width;
-    this->_display_h = height;
-
-    glViewport(0, 0, width, height);
-}
-
 static std::string vertexGlsl = "#version 150\n\
-in vec3 vertex;\
+        in vec3 vertex;\
 in vec2 texcoord;\
 \
 uniform mat4 u_projection;\
@@ -140,7 +74,7 @@ void main()\
 }";
 
 static std::string fragmentGlsl = "#version 150\n\
-uniform sampler2D u_texture;\
+        uniform sampler2D u_texture;\
 \
 in vec2 f_texcoord;\
 \
@@ -155,7 +89,7 @@ void main()\
 
 
 static std::string vertexBlocksGlsl = "#version 150\n\
-in vec3 vertex;\
+        in vec3 vertex;\
 in vec2 texcoord;\
 \
 uniform mat4 u_projection;\
@@ -169,14 +103,14 @@ void main()\
 }";
 
 static std::string fragmentBlocksGlsl = "#version 150\n\
-\
-in vec2 f_texcoord;\
+        \
+        in vec2 f_texcoord;\
 out vec4 color;\
 \
 void main()\
 {\
     if (int(gl_FragCoord.x) % 32 < 16 && int(gl_FragCoord.y) % 32 > 16\
-        || int(gl_FragCoord.x) % 32 > 16 && int(gl_FragCoord.y) % 32 < 16)\
+            || int(gl_FragCoord.x) % 32 > 16 && int(gl_FragCoord.y) % 32 < 16)\
         color = vec4(0.9f, 0.9f, 0.92f, 1.0f);\
     else\
         color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\
@@ -246,82 +180,13 @@ bool Program::SetUp()
     return true;
 }
 
-static struct Tool { const char* name; const char* icon; } tools[] = {
-{ "Arrow", FontAwesomeIcons::FA_MOUSE_POINTER },
-{ "Zoom", FontAwesomeIcons::FA_SEARCH },
-{ "Deformation", FontAwesomeIcons::FA_QUESTION },
-{ "Crop", FontAwesomeIcons::FA_CROP },
-{ "Mover", FontAwesomeIcons::FA_ARROWS },
-{ "Selection", FontAwesomeIcons::FA_QUESTION },
-{ "Freehand", FontAwesomeIcons::FA_QUESTION },
-{ "Magic wand selection", FontAwesomeIcons::FA_MAGIC },
-{ "Dropper", FontAwesomeIcons::FA_EYEDROPPER },
-{ "Paint brush", FontAwesomeIcons::FA_PAINT_BRUSH },
-{ "Clone brush", FontAwesomeIcons::FA_QUESTION },
-{ "Color replacer", FontAwesomeIcons::FA_CLONE },
-{ "Retouch brush", FontAwesomeIcons::FA_HAND_O_DOWN },
-{ "Scratch remover", FontAwesomeIcons::FA_QUESTION },
-{ "Erase", FontAwesomeIcons::FA_ERASER },
-{ "Picture tube", FontAwesomeIcons::FA_QUESTION },
-{ "Airbrush", FontAwesomeIcons::FA_QUESTION },
-{ "Flood fill", FontAwesomeIcons::FA_TINT },
-{ "Text", FontAwesomeIcons::FA_FONT },
-{ "Draw", GoogleIcons::GI_GESTURE},
-{ "Preset shapes", FontAwesomeIcons::FA_QUESTION },
-{ "Vector object selector", FontAwesomeIcons::FA_QUESTION }
-};
-
-static int selectedTool = 0;
 static float foreColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 static float backColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 static std::vector<std::string> tabs({ "empty" });
 
-void selectTool(int index)
-{
-    selectedTool = index;
-    std::cout << "Selecting tool: " << index << std::endl;
-}
+#include "image.h"
 
-class Layer
-{
-public:
-    Layer();
-
-    std::string _name;
-    bool _visible;
-    float _alpha;
-    int _alphaMode;
-
-    int _offset[2];
-    int _size[2];
-    int _bpp;
-    unsigned char* _data;
-    GLuint glindex;
-
-    void upload();
-    void use();
-
-    static Layer* defaultLayer(int size[2]);
-    static Layer* fromFile(const char* filename);
-};
-
-Layer::Layer() : _visible(true), _alpha(1.0f), _alphaMode(0), glindex(0) { }
-
-void Layer::upload()
-{
-    glGenTextures(1, &glindex);
-    glBindTexture(GL_TEXTURE_2D, glindex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    GLint format = GL_RGBA;
-    if (this->_bpp == 3) format = GL_RGB;
-    glTexImage2D(GL_TEXTURE_2D, 0, format, this->_size[0], this->_size[1], 0, format, GL_UNSIGNED_BYTE, this->_data);
-}
-
-void Layer::use()
-{
-    glBindTexture(GL_TEXTURE_2D, glindex);
-}
+Layer::Layer() : _flags(0), _visible(true), _alpha(1.0f), _alphaMode(0) { }
 
 Layer* Layer::defaultLayer(int size[2])
 {
@@ -338,8 +203,6 @@ Layer* Layer::defaultLayer(int size[2])
     layer->_data = new unsigned char[dataSize];
     for (int i = 0; i < dataSize; ++i) layer->_data[i] = 255;
 
-    layer->upload();
-
     return layer;
 }
 
@@ -350,59 +213,146 @@ Layer* Layer::fromFile(const char* filename)
     int n = 4;
     layer->_data = stbi_load(filename, &(layer ->_size[0]), &(layer ->_size[1]), &(layer ->_bpp), 0);
 
-    layer->upload();
-
     return layer;
 }
 
-class Document
+Image::Image() : _flags(0), _data(nullptr), _glindex(0), _selectedLayer(0)
 {
-public:
-    Document();
-    Document(const char* name);
-    virtual ~Document();
+    _size[0] = _size[1] = 256.0f;
+}
 
-    std::vector<Layer*> _layers;
-    std::string _name;
-    std::string _fullPath;
-    int _size[2];
+Image::~Image() { }
 
-    Layer* addLayer();
-    void fromFile(const char* filename);
-};
-
-Document::Document() { _size[0] = _size[1] = 256.0f; }
-
-Document::~Document() { }
-
-Layer* Document::addLayer()
+Layer* Image::addLayer()
 {
     auto layer = Layer::defaultLayer(this->_size);
-    layer->_name = std::string("Layer ") + std::to_string(this->_layers.size());
+    layer->_name = std::string("Layer ") + std::to_string(this->_layers.size() + 1);
+    layer->setDirty();
     this->_layers.push_back(layer);
 
     return layer;
 }
 
-void Document::fromFile(const char* filename)
+void Image::fromFile(const char* filename)
 {
     auto layer = Layer::fromFile(filename);
     layer->_name = std::string("Layer ") + std::to_string(this->_layers.size());
+    layer->setDirty();
     this->_size[0] = layer->_size[0];
     this->_size[1] = layer->_size[1];
     this->_layers.push_back(layer);
 }
 
+void Image::selectLayer(int index)
+{
+    if (index >= 0 && index < this->_layers.size())
+        _selectedLayer = index;
+}
+
+bool Image::isDirty() const
+{
+    if (_flags & Dirty) return true;
+
+    for (Layer* layer : this->_layers)
+        if (layer->_flags & Dirty) return true;
+
+    return false;
+}
+
+void Image::removeCurrentLayer()
+{
+    if (this->_layers.size() > 1)
+    {
+        this->_layers.erase(this->_layers.begin() + this->_selectedLayer);
+        if (this->_selectedLayer > 0) this->_selectedLayer--;
+        this->setDirty();
+    }
+}
+
+void Image::moveCurrentLayerUp()
+{
+    if (this->_selectedLayer >= 1)
+    {
+        auto tmp = this->_layers[this->_selectedLayer];
+        this->_layers[this->_selectedLayer] = this->_layers[this->_selectedLayer-1];
+        this->_layers[this->_selectedLayer-1] = tmp;
+        this->_selectedLayer--;
+        this->setDirty();
+    }
+}
+
+void Image::moveCurrentLayerDown()
+{
+    if (this->_selectedLayer < this->_layers.size()-1)
+    {
+        auto tmp = this->_layers[this->_selectedLayer];
+        this->_layers[this->_selectedLayer] = this->_layers[this->_selectedLayer+1];
+        this->_layers[this->_selectedLayer+1] = tmp;
+        this->_selectedLayer++;
+        this->setDirty();
+    }
+}
+
+GLuint uploadImage(Image* img)
+{
+    auto dataSize = img->_size[0] * img->_size[1] * 4;
+    if (img->_data == nullptr) img->_data = new unsigned char[dataSize];
+
+    memset(img->_data, 0, dataSize);
+
+    for (Layer* layer : img->_layers)
+    {
+        if (!layer->_visible) continue;
+        for (int y = 0; y < img->_size[1]; ++y)
+        {
+            for (int x = 0; x < img->_size[0]; ++x)
+            {
+                auto p = (x * img->_size[1] + y);
+                for (int b = 0; b < layer->_bpp; b++)
+                {
+                    img->_data[p * 4 + b] += layer->_data[p * layer->_bpp + b];
+                }
+                if (layer->_bpp < 4) img->_data[p * 4 + 3] = 255;
+            }
+        }
+    }
+
+    if (img->_glindex == 0) glGenTextures(1, &(img->_glindex));
+    glBindTexture(GL_TEXTURE_2D, img->_glindex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    GLint format = GL_RGBA;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, img->_size[0], img->_size[1], 0, format, GL_UNSIGNED_BYTE, img->_data);
+
+    return img->_glindex;
+}
+
 static int selectedTab = 0;
+static Image* selectedImage = nullptr;
 static const char** tabNames = nullptr;
 static int tabNameCount = 0;
 static int tabNameAllocCount = 0;
-static std::vector<Document*> _documents;
-static int selectedLayer = 0;
+static std::vector<Image*> _images;
 
-void addDocument(Document* doc)
+void changeTab(int newTab)
 {
-    _documents.push_back(doc);
+    if (selectedImage != nullptr)
+    {
+        glDeleteTextures(1, &(selectedImage->_glindex));
+        selectedImage->_glindex = 0;
+        selectedImage = nullptr;
+    }
+
+    if (newTab >= 0 && newTab < _images.size())
+    {
+        selectedImage = _images[newTab];
+        uploadImage(selectedImage);
+    }
+}
+
+void addImage(Image* img)
+{
+    _images.push_back(img);
 
     if (tabNames != nullptr) delete []tabNames;
     if (tabNameCount >= tabNameAllocCount)
@@ -418,91 +368,68 @@ void addDocument(Document* doc)
         delete []tabNames;
         tabNames = tmp;
     }
-    tabNames[tabNameCount] = new char[strlen(doc->_name.c_str()) + 1];
-    strcpy(((char*)tabNames[tabNameCount]), doc->_name.c_str());
+    tabNames[tabNameCount] = new char[strlen(img->_name.c_str()) + 1];
+    strcpy(((char*)tabNames[tabNameCount]), img->_name.c_str());
+    selectedTab = tabNameCount;
     ++tabNameCount;
+    changeTab(selectedTab);
 }
 
-void newDocument()
+void newImage()
 {
-    auto doc = new Document();
-    doc->_name = "New";
-    doc->_fullPath = "New.png";
-    doc->addLayer();
-    addDocument(doc);
+    auto img = new Image();
+    img->_name = "New";
+    img->_fullPath = "New.png";
+    img->addLayer();
+    addImage(img);
 }
 
-void openDocument()
+void openImage()
 {
     nfdchar_t *outPath = NULL;
     nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
 
     if (result == NFD_OKAY)
     {
-        auto doc = new Document();
-        doc->_fullPath = outPath;
-        std::replace(doc->_fullPath.begin(), doc->_fullPath.end(), '\\', '/');
-        doc->_name = doc->_fullPath.substr(doc->_fullPath.find_last_of('/') + 1);
-        doc->fromFile(outPath);
-        addDocument(doc);
+        auto img = new Image();
+        img->_fullPath = outPath;
+        std::replace(img->_fullPath.begin(), img->_fullPath.end(), '\\', '/');
+        img->_name = img->_fullPath.substr(img->_fullPath.find_last_of('/') + 1);
+        img->fromFile(outPath);
+        addImage(img);
     }
 }
 
 void addLayer()
 {
-    if (_documents.size() > 0)
+    if (selectedImage != nullptr)
     {
-        Document* doc = _documents[selectedTab];
-        doc->addLayer();
+        selectedImage->addLayer();
     }
 }
 
 void removeCurrentLayer()
 {
-    if (_documents.size() > 0)
+    if (selectedImage != nullptr)
     {
-        Document* doc = _documents[selectedTab];
-        if (doc->_layers.size() > 1)
-        {
-            doc->_layers.erase(doc->_layers.begin() + selectedLayer);
-            if (selectedLayer > 0) selectedLayer--;
-        }
+        selectedImage->removeCurrentLayer();
     }
 }
 
 void moveCurrentLayerUp()
 {
-    if (_documents.size() > 0)
+    if (selectedImage != nullptr)
     {
-        Document* doc = _documents[selectedTab];
-        if (selectedLayer >= 1)
-        {
-            auto tmp = doc->_layers[selectedLayer];
-            doc->_layers[selectedLayer] = doc->_layers[selectedLayer-1];
-            doc->_layers[selectedLayer-1] = tmp;
-            selectedLayer--;
-        }
+        selectedImage->moveCurrentLayerUp();
     }
 }
 
 void moveCurrentLayerDown()
 {
-    if (_documents.size() > 0)
+    if (selectedImage != nullptr)
     {
-        Document* doc = _documents[selectedTab];
-        if (selectedLayer < doc->_layers.size()-1)
-        {
-            auto tmp = doc->_layers[selectedLayer];
-            doc->_layers[selectedLayer] = doc->_layers[selectedLayer+1];
-            doc->_layers[selectedLayer+1] = tmp;
-            selectedLayer++;
-        }
+        selectedImage->moveCurrentLayerDown();
     }
-}
-
-void selectLayer(int index)
-{
-    selectedLayer = index;
 }
 
 void Program::Render()
@@ -514,9 +441,9 @@ void Program::Render()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    if (selectedTab < _documents.size())
+    if (selectedImage != nullptr)
     {
-        Document* doc = _documents[selectedTab];
+        if (selectedImage->isDirty()) uploadImage(selectedImage);
 
         auto zoom = glm::scale(glm::mat4(), glm::vec3(windowConfig.zoom / 100.0f));
         auto translate = glm::translate(zoom, glm::vec3(windowConfig.translatex, windowConfig.translatey, 0.0f));
@@ -527,25 +454,20 @@ void Program::Render()
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
 
-        // render blocks on document background
-        auto full = glm::scale(glm::mat4(), glm::vec3(doc->_size[0], doc->_size[1], 1.0f));
+        auto full = glm::scale(glm::mat4(), glm::vec3(selectedImage->_size[0], selectedImage->_size[1], 1.0f));
         glUseProgram(blocksProgram);
         glUniformMatrix4fv(u_projection, 1, GL_FALSE, &((projection * translate * full)[0][0]));
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        // render all layers
         glUseProgram(program);
         glUniformMatrix4fv(u_projection, 1, GL_FALSE, &((projection * translate)[0][0]));
 
-        for (Layer* layer : doc->_layers)
-        {
-            if (!layer->_visible) continue;
-            layer->use();
+        glBindTexture(GL_TEXTURE_2D, selectedImage->_glindex);
+        auto view = glm::scale(glm::mat4(), glm::vec3(selectedImage->_size[0], selectedImage->_size[1], 1.0f));
+        glUniformMatrix4fv(u_view, 1, GL_FALSE, &(view[0][0]));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
-            auto view = glm::scale(glm::mat4(), glm::vec3(layer->_size[0], layer->_size[1], 1.0f));
-            glUniformMatrix4fv(u_view, 1, GL_FALSE, &(view[0][0]));
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        }
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
     }
@@ -560,8 +482,8 @@ void Program::Render()
             {
                 if (ImGui::BeginMenu("File"))
                 {
-                    if (ImGui::MenuItem("New", "CTRL+N")) newDocument();
-                    if (ImGui::MenuItem("Open", "CTRL+O")) openDocument();
+                    if (ImGui::MenuItem("New", "CTRL+N")) newImage();
+                    if (ImGui::MenuItem("Open", "CTRL+O")) openImage();
                     if (ImGui::MenuItem("Save", "CTRL+S")) {}
                     if (ImGui::MenuItem("Save As..", "CTRL+SHIFT+Z")) {}
                     if (ImGui::MenuItem("Close")) {}
@@ -597,11 +519,11 @@ void Program::Render()
                 ImGui::SetWindowPos(ImVec2(0, 22));
                 ImGui::SetWindowSize(ImVec2(45, this->_display_h - 57));
 
-                for (int i = 0; i < sizeof(tools) / sizeof(Tool); i++)
+                for (int i = 0; i < tools.toolCount(); i++)
                 {
                     ImGui::PushID(i);
-                    ImGui::PushStyleColor(ImGuiCol_Button, i == selectedTool ? ImVec4(1.0f, 1.0f, 1.0f, 0.0f) : ImGui::GetStyle().Colors[ImGuiCol_Button]);
-                    if (ImGui::Button(tools[i].icon, ImVec2(30, 30))) selectTool(i);
+                    ImGui::PushStyleColor(ImGuiCol_Button, i == tools.selectedToolIndex() ? ImVec4(1.0f, 1.0f, 1.0f, 0.0f) : ImGui::GetStyle().Colors[ImGuiCol_Button]);
+                    if (ImGui::Button(tools[i]._icon, ImVec2(30, 30))) tools.selectTool(i);
                     ImGui::PopStyleColor(1);
                     ImGui::PopID();
                 }
@@ -616,7 +538,10 @@ void Program::Render()
 
                 if (tabNameCount > 0)
                 {
-                    ImGui::TabLabels(tabNames, tabNameCount, selectedTab);
+                    if (ImGui::TabLabels(tabNames, tabNameCount, selectedTab))
+                    {
+                        changeTab(selectedTab);
+                    }
                 }
             }
             ImGui::End();
@@ -633,7 +558,7 @@ void Program::Render()
                     ImGui::ColorEdit3("Back", backColor);
                 }
 
-                if (_documents.size() > 0)
+                if (_images.size() > 0)
                 {
                     if (ImGui::CollapsingHeader("Layer options", "layers", true, true))
                     {
@@ -647,28 +572,32 @@ void Program::Render()
 
                         ImGui::Separator();
 
-                        Document* doc = _documents[selectedTab];
-                        for (int i = 0; i < doc->_layers.size(); i++)
+                        if (selectedImage != nullptr)
                         {
-                            auto layer = doc->_layers[i];
-                            ImGui::PushID(i);
-                            auto title = layer->_name;
-                            if (selectedLayer == i) title += " (selected)";
-                            if (ImGui::TreeNode("layer_node", title.c_str()))
+                            for (int i = 0; i < selectedImage->_layers.size(); i++)
                             {
-                                if (ImGui::Button(layer->_visible ? FontAwesomeIcons::FA_EYE : FontAwesomeIcons::FA_EYE_SLASH, ImVec2(30, 30)))
-                                    layer->_visible = !layer->_visible;
-                                ImGui::SameLine();
-                                ImGui::PushStyleColor(ImGuiCol_Button, i == selectedLayer ? ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] : ImVec4(0.20f, 0.40f, 0.47f, 0.0f));
-                                if (ImGui::Button(layer->_name.c_str(), ImVec2(-1, 30))) selectLayer(i);
-                                ImGui::PopStyleColor(1);
+                                auto layer = selectedImage->_layers[i];
+                                ImGui::PushID(i);
+                                auto title = layer->_name;
+                                if (selectedImage->_selectedLayer == i) title += " (selected)";
+                                if (ImGui::TreeNode("layer_node", title.c_str()))
+                                {
+                                    if (ImGui::Button(layer->isVisible() ? FontAwesomeIcons::FA_EYE : FontAwesomeIcons::FA_EYE_SLASH, ImVec2(30, 30)))
+                                    {
+                                        layer->toggleVisibility();
+                                    }
+                                    ImGui::SameLine();
+                                    ImGui::PushStyleColor(ImGuiCol_Button, i == selectedImage->_selectedLayer ? ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] : ImVec4(0.20f, 0.40f, 0.47f, 0.0f));
+                                    if (ImGui::Button(layer->_name.c_str(), ImVec2(-1, 30))) selectedImage->selectLayer(i);
+                                    ImGui::PopStyleColor(1);
 
-                                ImGui::SliderFloat("Alpha", &(layer->_alpha), 0.0f, 1.0f);
-                                ImGui::Combo("Mode", &(layer->_alphaMode), "Normal\0Darken\0Lighten\0Hue\0Saturation\0Color\0Lumminance\0Multiply\0Screen\0Dissolve\0Overlay\0Hard Light\0Soft Light\0Difference\0Dodge\0Burn\0Exclusion\0\0");
+                                    ImGui::SliderFloat("Alpha", &(layer->_alpha), 0.0f, 1.0f);
+                                    ImGui::Combo("Mode", &(layer->_alphaMode), "Normal\0Darken\0Lighten\0Hue\0Saturation\0Color\0Lumminance\0Multiply\0Screen\0Dissolve\0Overlay\0Hard Light\0Soft Light\0Difference\0Dodge\0Burn\0Exclusion\0\0");
 
-                                ImGui::TreePop();
+                                    ImGui::TreePop();
+                                }
+                                ImGui::PopID();
                             }
-                            ImGui::PopID();
                         }
 
                         ImGui::Separator();
@@ -704,5 +633,123 @@ void Program::Render()
     ImGui::Render();
 }
 
+void Program::onKeyAction(int key, int scancode, int action, int mods)
+{
+    windowConfig.shiftPressed = (mods & GLFW_MOD_SHIFT);
+    windowConfig.ctrlPressed = (mods & GLFW_MOD_CONTROL);
+}
+
+void Program::onMouseMove(int x, int y)
+{
+    windowConfig.mousex = x;
+    windowConfig.mousey = y;
+}
+
+void Program::onMouseButton(int button, int action, int mods)
+{
+    if (selectedImage == nullptr) return;
+
+    if (tools.selectedTool()._actionFactory == nullptr) return;
+
+    auto fac = tools.selectedTool()._actionFactory;
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+    {
+        fac->PrimaryMouseButtonDown(selectedImage,
+                                    mods & GLFW_MOD_SHIFT,
+                                    mods & GLFW_MOD_CONTROL,
+                                    mods & GLFW_MOD_ALT,
+                                    mods & GLFW_MOD_SUPER);
+    }
+    else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+    {
+        fac->PrimaryMouseButtonUp(selectedImage,
+                                  mods & GLFW_MOD_SHIFT,
+                                  mods & GLFW_MOD_CONTROL,
+                                  mods & GLFW_MOD_ALT,
+                                  mods & GLFW_MOD_SUPER);
+    }
+    else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+    {
+        fac->PrimaryMouseButtonUp(selectedImage,
+                                  mods & GLFW_MOD_SHIFT,
+                                  mods & GLFW_MOD_CONTROL,
+                                  mods & GLFW_MOD_ALT,
+                                  mods & GLFW_MOD_SUPER);
+    }
+    else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+    {
+        fac->PrimaryMouseButtonUp(selectedImage,
+                                  mods & GLFW_MOD_SHIFT,
+                                  mods & GLFW_MOD_CONTROL,
+                                  mods & GLFW_MOD_ALT,
+                                  mods & GLFW_MOD_SUPER);
+    }
+}
+
+void Program::onScroll(int x, int y)
+{
+    if (windowConfig.shiftPressed)
+    {
+        windowConfig.translatex += (y * 5);
+    }
+    else if (windowConfig.ctrlPressed)
+    {
+        windowConfig.translatey += (y * 5);
+    }
+    else
+    {
+        windowConfig.zoom += (y * 5);
+        if (windowConfig.zoom < 10) windowConfig.zoom = 10;
+    }
+}
+
+void Program::onResize(int width, int height)
+{
+    float aspectw = float(width) / float(this->_display_w);
+    float aspecth = float(height) / float(this->_display_h);
+    windowConfig.w *= aspectw;
+    windowConfig.h *= aspecth;
+
+    this->_display_w = width;
+    this->_display_h = height;
+
+    glViewport(0, 0, width, height);
+}
+
 void Program::CleanUp()
 { }
+
+void Program::KeyActionCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onKeyAction(key, scancode, action, mods);
+}
+
+void Program::CursorPosCallback(GLFWwindow* window, double x, double y)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onMouseMove(int(x), int(y));
+}
+
+void Program::ScrollCallback(GLFWwindow* window, double x, double y)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onScroll(int(x), int(y));
+}
+
+void Program::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onMouseButton(button, action, mods);
+}
+
+void Program::ResizeCallback(GLFWwindow* window, int width, int height)
+{
+    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+
+    if (app != nullptr) app->onResize(width, height);
+}

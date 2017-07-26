@@ -13,12 +13,23 @@ if(GLFW3_FOUND)
         program.cpp
         shader.cpp
         log.cpp
+        tools.cpp
         )
 
     set(imaditor_HDRS
         program.h
         shader.h
         log.h
+        imgui_tabs.h
+        tools.h
+        image.h
+        )
+
+    set(actions_SRCS
+        actions/baseaction.cpp
+        actions/baseaction.h
+        actions/floodfillaction.cpp
+        actions/floodfillaction.h
         )
 
     set(imgui_SRCS
@@ -37,6 +48,7 @@ if(GLFW3_FOUND)
         ${imaditor_HDRS}
         ${imgui_SRCS}
         ${nfd_SRCS}
+        ${actions_SRCS}
         )
 
     target_include_directories(imaditor

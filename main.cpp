@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
     glfwSetKeyCallback(window, Program::KeyActionCallback);
     glfwSetCursorPosCallback(window, Program::CursorPosCallback);
     glfwSetScrollCallback(window, Program::ScrollCallback);
+    glfwSetMouseButtonCallback(window, Program::MouseButtonCallback);
 
     glfwSetWindowSizeCallback(window, Program::ResizeCallback);
     glfwMakeContextCurrent(window);

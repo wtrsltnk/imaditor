@@ -14,6 +14,7 @@ public:
     static void ResizeCallback(GLFWwindow* window, int width, int height);
     static void CursorPosCallback(GLFWwindow* window, double x, double y);
     static void ScrollCallback(GLFWwindow* window, double x, double y);
+    static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 
 protected:
     int _display_w, _display_h;
@@ -21,6 +22,7 @@ protected:
     void onKeyAction(int key, int scancode, int action, int mods);
     void onResize(int width, int height);
     void onMouseMove(int x, int y);
+    void onMouseButton(int button, int action, int mods);
     void onScroll(int x, int y);
 
 public:
