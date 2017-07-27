@@ -61,4 +61,19 @@ public:
     int _selectedLayer;
 };
 
+class Images
+{
+    Image* _selectedImage;
+public:
+    Images();
+    virtual ~Images();
+
+    std::vector<Image*> _images;
+
+    void select(int index);
+    Image* selected();
+    bool hasImages() const;
+    void uploadSelectedImage();
+};
+
 #endif // IMAGE_H

@@ -1,6 +1,7 @@
 #include "tools.h"
 #include "font-icons.h"
 #include "actions/floodfillaction.h"
+#include "actions/brushaction.h"
 
 #include <iostream>
 
@@ -16,7 +17,7 @@ Tools::Tools()
     _tools.push_back(Tool({ "Freehand", FontAwesomeIcons::FA_QUESTION, nullptr }));
     _tools.push_back(Tool({ "Magic wand selection", FontAwesomeIcons::FA_MAGIC, nullptr }));
     _tools.push_back(Tool({ "Dropper", FontAwesomeIcons::FA_EYEDROPPER, nullptr }));
-    _tools.push_back(Tool({ "Paint brush", FontAwesomeIcons::FA_PAINT_BRUSH, nullptr }));
+    _tools.push_back(Tool({ "Paint brush", FontAwesomeIcons::FA_PAINT_BRUSH, BrushActionFactory::Instance() }));
     _tools.push_back(Tool({ "Clone brush", FontAwesomeIcons::FA_QUESTION, nullptr }));
     _tools.push_back(Tool({ "Color replacer", FontAwesomeIcons::FA_CLONE, nullptr }));
     _tools.push_back(Tool({ "Retouch brush", FontAwesomeIcons::FA_HAND_O_DOWN, nullptr }));
@@ -68,4 +69,9 @@ const Tool& Tools::selectedTool() const
 int Tools::selectedToolIndex() const
 {
     return this->_selectedTool;
+}
+
+bool Tools::isSelected(int index) const
+{
+    return this->_selectedTool == index;
 }

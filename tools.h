@@ -25,6 +25,7 @@ public:
     int toolCount() const;
     const Tool& selectedTool() const;
     int selectedToolIndex() const;
+    bool isSelected(int index) const;
     const Tool& operator [] (int index) const;
 
 };

@@ -14,6 +14,7 @@ if(GLFW3_FOUND)
         shader.cpp
         log.cpp
         tools.cpp
+        image.cpp
         )
 
     set(imaditor_HDRS
@@ -30,6 +31,8 @@ if(GLFW3_FOUND)
         actions/baseaction.h
         actions/floodfillaction.cpp
         actions/floodfillaction.h
+        actions/brushaction.cpp
+        actions/brushaction.h
         )
 
     set(imgui_SRCS
