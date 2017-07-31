@@ -14,6 +14,9 @@ FloodFillActionFactory* FloodFillActionFactory::Instance()
     return &instance;
 }
 
+void FloodFillActionFactory::MouseMove(Image* image, int x, int y)
+{ }
+
 void FloodFillActionFactory::PrimaryMouseButtonDown(Image* image, bool shift, bool ctrl, bool alt, bool super)
 { }
 
@@ -36,11 +39,12 @@ void FloodFillActionFactory::PrimaryMouseButtonUp(Image* image, bool shift, bool
 }
 
 void FloodFillActionFactory::SecondaryMouseButtonDown(Image* image, bool shift, bool ctrl, bool alt, bool super)
-{
-
-}
+{ }
 
 void FloodFillActionFactory::SecondaryMouseButtonUp(Image* image, bool shift, bool ctrl, bool alt, bool super)
-{
+{ }
 
+GLuint FloodFillActionFactory::ToolHelperImage()
+{
+    return 0;
 }

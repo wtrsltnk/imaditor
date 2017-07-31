@@ -15,6 +15,9 @@ if(GLFW3_FOUND)
         log.cpp
         tools.cpp
         image.cpp
+        brushes.cpp
+        glarraybuffer.cpp
+        glprogram.cpp
         )
 
     set(imaditor_HDRS
@@ -24,6 +27,9 @@ if(GLFW3_FOUND)
         imgui_tabs.h
         tools.h
         image.h
+        brushes.h
+        glarraybuffer.h
+        glprogram.h
         )
 
     set(actions_SRCS

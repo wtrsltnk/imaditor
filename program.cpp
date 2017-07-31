@@ -9,6 +9,9 @@
 #include "font-icons.h"
 #include "shader.h"
 #include "tools.h"
+#include "brushes.h"
+#include "glprogram.h"
+#include "glarraybuffer.h"
 #include "actions/baseaction.h"
 
 #define IMGUI_TABS_IMPLEMENTATION
@@ -27,7 +30,11 @@
 #include <glm/gtc/type_ptr.hpp>
 
 static Tools tools;
+static Brushes brushes;
 static Images images;
+static GlProgram imageShader;
+static GlProgram backgroundShader;
+static GlArrayBuffer buffer;
 
 static struct {
     bool show_toolbar = false;
@@ -56,6 +63,9 @@ Program::~Program()
     glfwSetWindowUserPointer(this->_window, nullptr);
 }
 
+
+
+
 static std::string vertexGlsl = "#version 150\n\
         in vec3 vertex;\
 in vec2 texcoord;\
@@ -83,20 +93,18 @@ void main()\
     color = texture(u_texture, f_texcoord);\
 }";
 
-
-
-
 static std::string vertexBlocksGlsl = "#version 150\n\
         in vec3 vertex;\
 in vec2 texcoord;\
 \
 uniform mat4 u_projection;\
+uniform mat4 u_view;\
 \
 out vec2 f_texcoord;\
 \
 void main()\
 {\
-    gl_Position = u_projection * vec4(vertex.xyz, 1.0);\
+    gl_Position = u_projection * u_view * vec4(vertex.xyz, 1.0);\
     f_texcoord = texcoord;\
 }";
 
@@ -113,14 +121,6 @@ void main()\
         color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\
 }";
 
-static float g_vertex_buffer_data[] = {
-    0.5f,  0.5f,  0.0f,  1.0f, 1.0f,  0.0f,
-    0.5f, -0.5f,  0.0f,  1.0f, 0.0f,  0.0f,
-    -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f,
-    -0.5f, -0.5f,  0.0f,  0.0f, 0.0f,  0.0f,
-};
-
-static GLuint program;
 static GLuint blocksProgram;
 static GLuint u_projection;
 static GLuint u_view;
@@ -141,21 +141,11 @@ bool Program::SetUp()
     static const ImWchar icons_ranges_googleicon[] = { 0xe000, 0xeb4c, 0 };
     io.Fonts->AddFontFromFileTTF("../imaditor/MaterialIcons-Regular.ttf", 18.0f, &config, icons_ranges_googleicon);
 
-    blocksProgram = LoadShaderProgram(vertexBlocksGlsl.c_str(), fragmentBlocksGlsl.c_str());
-    program = LoadShaderProgram(vertexGlsl.c_str(), fragmentGlsl.c_str());
-    u_projection = glGetUniformLocation(program, "u_projection");
-    u_view = glGetUniformLocation(program, "u_view");
+    brushes.init();
 
-    glGenBuffers(1, &vertexbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(sizeof(float) * 3));
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    imageShader.init(vertexGlsl.c_str(), fragmentGlsl.c_str());
+    backgroundShader.init(vertexBlocksGlsl.c_str(), fragmentBlocksGlsl.c_str());
+    buffer.init();
 
     return true;
 }
@@ -266,28 +256,23 @@ void Program::Render()
 
         auto zoom = glm::scale(glm::mat4(), glm::vec3(state.zoom / 100.0f));
         auto translate = glm::translate(zoom, glm::vec3(state.translatex, state.translatey, 0.0f));
+        auto scale = glm::scale(translate, glm::vec3(img->_size[0], img->_size[1], 1.0f));
+
         auto projection = glm::ortho(-(state.width/2.0f), (state.width/2.0f), (state.height/2.0f), -(state.height/2.0f));
 
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
+        buffer.bind();
 
-        auto full = glm::scale(glm::mat4(), glm::vec3(img->_size[0], img->_size[1], 1.0f));
-        glUseProgram(blocksProgram);
-        glUniformMatrix4fv(u_projection, 1, GL_FALSE, glm::value_ptr(projection * translate * full));
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        backgroundShader.bind()
+                .matrix("u_projection", projection)
+                .matrix("u_view", scale);
+        buffer.render();
 
-        glUseProgram(program);
-        glUniformMatrix4fv(u_projection, 1, GL_FALSE, glm::value_ptr(projection * translate));
+        imageShader.bind()
+                .matrix("u_projection", projection)
+                .matrix("u_view", scale);
+        buffer.render();
 
-        glBindTexture(GL_TEXTURE_2D, img->_glindex);
-        auto view = glm::scale(glm::mat4(), glm::vec3(img->_size[0], img->_size[1], 1.0f));
-        glUniformMatrix4fv(u_view, 1, GL_FALSE, glm::value_ptr(view));
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
+        buffer.unbind();
     }
 
     ImGui_ImplGlfwGL3_NewFrame();
@@ -374,8 +359,19 @@ void Program::Render()
 
                 if (ImGui::CollapsingHeader("Color options", "colors", true, true))
                 {
-                    ImGui::ColorEdit4("Fore", foreColor);
-                    ImGui::ColorEdit4("Back", backColor);
+                    static int e = 0;
+                    ImGui::RadioButton("Fore", &e, 0); ImGui::SameLine();
+                    ImGui::RadioButton("Back", &e, 1);
+                    if (e == 0)
+                    {
+                        ImGui::ColorPicker("rgb", foreColor);
+                        ImGui::SliderFloat("alpha", &foreColor[3], 0.0f, 1.0f);
+                    }
+                    else
+                    {
+                        ImGui::ColorPicker("rgb", backColor);
+                        ImGui::SliderFloat("alpha", &backColor[3], 0.0f, 1.0f);
+                    }
                 }
 
                 if (images.hasImages())
@@ -421,9 +417,18 @@ void Program::Render()
                     }
                 }
 
+                if (ImGui::CollapsingHeader("Brush options", "tools", true, true))
+                {
+                    for (int i = 0; i < brushes._count; ++i)
+                    {
+                        ImGui::ImageButton((ImTextureID)brushes._brushes[i]._textureIndex, ImVec2(30, 30));
+                    }
+                    ImGui::Separator();
+                }
+
                 if (ImGui::CollapsingHeader("Tool options", "tools", true, true))
                 {
-                    ImGui::TextWrapped("This window is being created by the ShowTestWindow() function. Please refer to the code for programming reference.\n\nUser Guide:");
+                    ImGui::Separator();
                 }
             }
             ImGui::End();
@@ -460,6 +465,13 @@ void Program::onMouseMove(int x, int y)
 {
     state.mousex = x;
     state.mousey = y;
+
+    // todo, translate these to image-space
+
+    if (tools.selectedTool()._actionFactory == nullptr) return;
+
+    auto fac = tools.selectedTool()._actionFactory;
+    fac->MouseMove(images.selected(), x, y);
 }
 
 void Program::onMouseButton(int button, int action, int mods)
