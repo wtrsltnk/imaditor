@@ -1,6 +1,8 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
+#include "brushes.h"
+
 #include <GL/glextl.h>
 #include <GLFW/glfw3.h>
 
@@ -8,6 +10,7 @@ class Program
 {
 private:
     GLFWwindow* _window;
+    Brushes brushes;
 
 public:
     static void KeyActionCallback(GLFWwindow* window, int key, int scancode, int action, int mods);

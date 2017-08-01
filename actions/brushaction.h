@@ -12,6 +12,7 @@ public:
 class BrushActionFactory : public BaseActionFactory
 {
     float _size;
+    int _lastPosition[2];
     BrushActionFactory();
 public:
     static BrushActionFactory* Instance();

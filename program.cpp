@@ -9,7 +9,6 @@
 #include "font-icons.h"
 #include "shader.h"
 #include "tools.h"
-#include "brushes.h"
 #include "glprogram.h"
 #include "glarraybuffer.h"
 #include "actions/baseaction.h"
@@ -30,7 +29,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 static Tools tools;
-static Brushes brushes;
 static Images images;
 static GlProgram imageShader;
 static GlProgram backgroundShader;
@@ -421,7 +419,7 @@ void Program::Render()
                 {
                     for (int i = 0; i < brushes._count; ++i)
                     {
-                        ImGui::ImageButton((ImTextureID)brushes._brushes[i]._textureIndex, ImVec2(30, 30));
+                        ImGui::ImageButton((ImTextureID)(brushes._brushes[i]._textureIndex), ImVec2(30, 30));
                     }
                     ImGui::Separator();
                 }
