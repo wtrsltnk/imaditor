@@ -164,9 +164,9 @@ static const char** tabNames = nullptr;
 static int tabNameAllocCount = 0;
 const int dockbarWidth = 250;
 const int menubarHeight = 22;
-const int tooloptionsHeight = 45;
+const int optionsbarHeight = 45;
 const int statebarHeight = 35;
-const int toolbarWidth = 45;
+const int toolboxWidth = 45;
 
 void updateTabNames()
 {
@@ -327,10 +327,10 @@ void Program::Render()
 
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.20f, 0.20f, 0.47f, 0.60f));
         {
-            ImGui::Begin("tooloptions", &state.show_tooloptions, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("optionsBar", &state.show_tooloptions, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(0, menubarHeight));
-                ImGui::SetWindowSize(ImVec2(state.width, tooloptionsHeight));
+                ImGui::SetWindowSize(ImVec2(state.width, optionsbarHeight));
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4());
                 ImGui::Button(FontAwesomeIcons::FA_PAW, ImVec2(30, 30));
@@ -338,10 +338,10 @@ void Program::Render()
             }
             ImGui::End();
 
-            ImGui::Begin("toolbar", &state.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("toolbox", &state.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(0, menubarHeight + tooloptionsHeight));
-                ImGui::SetWindowSize(ImVec2(toolbarWidth, state.height - menubarHeight - tooloptionsHeight - statebarHeight));
+                ImGui::SetWindowPos(ImVec2(0, menubarHeight + optionsbarHeight));
+                ImGui::SetWindowSize(ImVec2(toolboxWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
 
                 for (int i = 0; i < tools.toolCount(); i++)
                 {
@@ -375,8 +375,8 @@ void Program::Render()
 
             ImGui::Begin("dockbar", &(state.show_dockbar), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, menubarHeight + tooloptionsHeight));
-                ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - menubarHeight - tooloptionsHeight - statebarHeight));
+                ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, menubarHeight + optionsbarHeight));
+                ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
 
                 if (ImGui::CollapsingHeader("Color options", "colors", true, true))
                 {
@@ -580,8 +580,8 @@ void Program::onResize(int width, int height)
 {
     state.width = width;
     state.height = height;
-    state.contentPosition = glm::vec2 (toolbarWidth, menubarHeight + tooloptionsHeight);
-    state.contentSize = glm::vec2 (state.width - toolbarWidth - dockbarWidth, state.height - menubarHeight - tooloptionsHeight);
+    state.contentPosition = glm::vec2 (toolboxWidth, menubarHeight + optionsbarHeight);
+    state.contentSize = glm::vec2 (state.width - toolboxWidth - dockbarWidth, state.height - menubarHeight - optionsbarHeight);
 
     glViewport(0, 0, width, height);
 }
