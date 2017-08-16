@@ -5,6 +5,7 @@
 #include <imgui_internal.h>
 #include "imgui_impl_glfw_gl3.h"
 
+#include "state.h"
 #include "image.h"
 #include "font-icons.h"
 #include "shader.h"
@@ -27,6 +28,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 static Tools tools;
 static Images images;
@@ -36,17 +38,23 @@ static GlArrayBuffer buffer;
 
 static struct {
     bool show_toolbar = false;
+    bool show_tooloptions = false;
     bool show_content = false;
     bool show_dockbar = false;
     float width = 200.0f;
     float height = 300.0f;
     int mousex = 0;
     int mousey = 0;
+    int mouseImagex = 0;
+    int mouseImagey = 0;
     int zoom = 100;
     int translatex = 0;
     int translatey = 0;
     bool shiftPressed = false;
     bool ctrlPressed = false;
+    glm::vec2 contentPosition;
+    glm::vec2 contentSize;
+
 
 } state;
 
@@ -148,12 +156,17 @@ bool Program::SetUp()
     return true;
 }
 
-static float foreColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-static float backColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+float foreColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+float backColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 static int selectedTab = 0;
 static const char** tabNames = nullptr;
 static int tabNameAllocCount = 0;
+const int dockbarWidth = 250;
+const int menubarHeight = 22;
+const int tooloptionsHeight = 45;
+const int statebarHeight = 35;
+const int toolbarWidth = 45;
 
 void updateTabNames()
 {
@@ -312,13 +325,23 @@ void Program::Render()
         }
         ImGui::PopStyleColor();
 
-        const int dockbarWidth = 250;
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.20f, 0.20f, 0.47f, 0.60f));
         {
+            ImGui::Begin("tooloptions", &state.show_tooloptions, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
+            {
+                ImGui::SetWindowPos(ImVec2(0, menubarHeight));
+                ImGui::SetWindowSize(ImVec2(state.width, tooloptionsHeight));
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4());
+                ImGui::Button(FontAwesomeIcons::FA_PAW, ImVec2(30, 30));
+                ImGui::PopStyleColor(1);
+            }
+            ImGui::End();
+
             ImGui::Begin("toolbar", &state.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(0, 22));
-                ImGui::SetWindowSize(ImVec2(45, state.height - 57));
+                ImGui::SetWindowPos(ImVec2(0, menubarHeight + tooloptionsHeight));
+                ImGui::SetWindowSize(ImVec2(toolbarWidth, state.height - menubarHeight - tooloptionsHeight - statebarHeight));
 
                 for (int i = 0; i < tools.toolCount(); i++)
                 {
@@ -335,8 +358,8 @@ void Program::Render()
             {
                 ImGui::Begin("content", &(state.show_content), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
                 {
-                    ImGui::SetWindowPos(ImVec2(45, 22));
-                    ImGui::SetWindowSize(ImVec2(state.width - 45 - dockbarWidth, state.height - 57));
+                    ImGui::SetWindowPos(ImVec2(state.contentPosition.x, state.contentPosition.y));
+                    ImGui::SetWindowSize(ImVec2(state.contentSize.x, state.contentSize.y));
 
                     if (images.hasImages())
                     {
@@ -352,8 +375,8 @@ void Program::Render()
 
             ImGui::Begin("dockbar", &(state.show_dockbar), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, 22));
-                ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - 57));
+                ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, menubarHeight + tooloptionsHeight));
+                ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - menubarHeight - tooloptionsHeight - statebarHeight));
 
                 if (ImGui::CollapsingHeader("Color options", "colors", true, true))
                 {
@@ -423,18 +446,13 @@ void Program::Render()
                     }
                     ImGui::Separator();
                 }
-
-                if (ImGui::CollapsingHeader("Tool options", "tools", true, true))
-                {
-                    ImGui::Separator();
-                }
             }
             ImGui::End();
 
             ImGui::Begin("statusbar", &(state.show_content), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(0, state.height - 35));
-                ImGui::SetWindowSize(ImVec2(state.width, 35));
+                ImGui::SetWindowPos(ImVec2(0, state.height - statebarHeight));
+                ImGui::SetWindowSize(ImVec2(state.width, statebarHeight));
 
                 ImGui::Columns(3);
                 ImGui::Text("status bar");
@@ -459,17 +477,43 @@ void Program::onKeyAction(int key, int scancode, int action, int mods)
     state.ctrlPressed = (mods & GLFW_MOD_CONTROL);
 }
 
+bool isMouseInContent()
+{
+    if (state.mousex < state.contentPosition.x) return false;
+    if (state.mousey < state.contentPosition.y) return false;
+    if (state.mousex > (state.contentPosition.x + state.contentSize.x)) return false;
+    if (state.mousey > (state.contentPosition.y + state.contentSize.y)) return false;
+
+    return true;
+}
+
 void Program::onMouseMove(int x, int y)
 {
     state.mousex = x;
     state.mousey = y;
 
-    // todo, translate these to image-space
-
     if (tools.selectedTool()._actionFactory == nullptr) return;
 
     auto fac = tools.selectedTool()._actionFactory;
-    fac->MouseMove(images.selected(), x, y);
+
+    if (!isMouseInContent()) return;
+
+    if (images.selected() != nullptr)
+    {
+        auto img = images.selected();
+        auto zoom = glm::scale(glm::mat4(), glm::vec3(state.zoom / 100.0f));
+        auto translate = glm::translate(zoom, glm::vec3(state.translatex, -state.translatey, 0.0f));
+        auto projection = glm::ortho(-(state.width/2.0f), (state.width/2.0f), (state.height/2.0f), -(state.height/2.0f));
+
+        auto pp = glm::unProject(glm::vec3(x, y, 0.0f),
+                                 translate, projection,
+                                 glm::vec4(0.0f, 0.0f, state.width, state.height));
+
+        state.mouseImagex = pp.x + (img->_size[0] / 2.0f);
+        state.mouseImagey = -(pp.y - (img->_size[1] / 2.0f));
+
+        fac->MouseMove(images.selected(), state.mouseImagex, state.mouseImagey);
+    }
 }
 
 void Program::onMouseButton(int button, int action, int mods)
@@ -477,6 +521,8 @@ void Program::onMouseButton(int button, int action, int mods)
     if (images.selected() == nullptr) return;
 
     if (tools.selectedTool()._actionFactory == nullptr) return;
+
+    if (!isMouseInContent()) return;
 
     auto fac = tools.selectedTool()._actionFactory;
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
@@ -497,19 +543,19 @@ void Program::onMouseButton(int button, int action, int mods)
     }
     else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
-        fac->PrimaryMouseButtonUp(images.selected(),
-                                  mods & GLFW_MOD_SHIFT,
-                                  mods & GLFW_MOD_CONTROL,
-                                  mods & GLFW_MOD_ALT,
-                                  mods & GLFW_MOD_SUPER);
+        fac->SecondaryMouseButtonUp(images.selected(),
+                                    mods & GLFW_MOD_SHIFT,
+                                    mods & GLFW_MOD_CONTROL,
+                                    mods & GLFW_MOD_ALT,
+                                    mods & GLFW_MOD_SUPER);
     }
     else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
     {
-        fac->PrimaryMouseButtonUp(images.selected(),
-                                  mods & GLFW_MOD_SHIFT,
-                                  mods & GLFW_MOD_CONTROL,
-                                  mods & GLFW_MOD_ALT,
-                                  mods & GLFW_MOD_SUPER);
+        fac->SecondaryMouseButtonUp(images.selected(),
+                                    mods & GLFW_MOD_SHIFT,
+                                    mods & GLFW_MOD_CONTROL,
+                                    mods & GLFW_MOD_ALT,
+                                    mods & GLFW_MOD_SUPER);
     }
 }
 
@@ -534,6 +580,8 @@ void Program::onResize(int width, int height)
 {
     state.width = width;
     state.height = height;
+    state.contentPosition = glm::vec2 (toolbarWidth, menubarHeight + tooloptionsHeight);
+    state.contentSize = glm::vec2 (state.width - toolbarWidth - dockbarWidth, state.height - menubarHeight - tooloptionsHeight);
 
     glViewport(0, 0, width, height);
 }

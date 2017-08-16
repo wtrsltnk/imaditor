@@ -18,6 +18,7 @@ if(GLFW3_FOUND)
         brushes.cpp
         glarraybuffer.cpp
         glprogram.cpp
+        state.h
         )
 
     set(imaditor_HDRS
@@ -39,6 +40,10 @@ if(GLFW3_FOUND)
         actions/floodfillaction.h
         actions/brushaction.cpp
         actions/brushaction.h
+        actions/dropperaction.cpp
+        actions/dropperaction.h
+        actions/eraseaction.cpp
+        actions/eraseaction.h
         )
 
     set(imgui_SRCS

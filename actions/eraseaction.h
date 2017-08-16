@@ -1,24 +1,24 @@
-#ifndef BRUSHACTION_H
-#define BRUSHACTION_H
+#ifndef ERASEACTION_H
+#define ERASEACTION_H
 
 #include "baseaction.h"
 #include <glm/glm.hpp>
 
-class BrushAction : public BaseAction
+class EraseAction
 {
 public:
-    BrushAction();
+    EraseAction();
 };
 
-class BrushActionFactory : public BaseActionFactory
+class EraseActionFactory : public BaseActionFactory
 {
-    void paint(Image* image, float color[], const glm::vec2& p);
+    void erase(Image* image, float color[], const glm::vec2& p);
     float _size;
     int _lastPosition[2];
-    bool _isPainting;
-    BrushActionFactory();
+    bool _isErasing;
+    EraseActionFactory();
 public:
-    static BrushActionFactory* Instance();
+    static EraseActionFactory* Instance();
 
     virtual void MouseMove(Image* image, int x, int y);
     virtual void PrimaryMouseButtonDown(Image* image, bool shift, bool ctrl, bool alt, bool super);
@@ -29,4 +29,4 @@ public:
     virtual GLuint ToolHelperImage();
 };
 
-#endif // BRUSHACTION_H
+#endif // ERASEACTION_H

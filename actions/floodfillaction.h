@@ -11,6 +11,7 @@ public:
 
 class FloodFillActionFactory : public BaseActionFactory
 {
+    void floodFill(class Layer* layer, float color[]);
     FloodFillActionFactory();
 public:
     static FloodFillActionFactory* Instance();
