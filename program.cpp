@@ -6,7 +6,7 @@
 #include "imgui_impl_glfw_gl3.h"
 
 #include "state.h"
-#include "image.h"
+#include "images.h"
 #include "font-icons.h"
 #include "shader.h"
 #include "tools.h"
@@ -54,7 +54,7 @@ static struct {
     bool ctrlPressed = false;
     glm::vec2 contentPosition;
     glm::vec2 contentSize;
-
+    bool mousePanning = false;
 
 } state;
 
@@ -180,8 +180,8 @@ void updateTabNames()
 
     for (int i = 0; i < images._images.size(); ++i)
     {
-        auto tmp = new char[images._images[i]->_name.size()];
-        strcpy(tmp, images._images[i]->_name.c_str());
+        auto tmp = new char[images._images[i].image->_name.size()];
+        strcpy(tmp, images._images[i].image->_name.c_str());
         tabNames[i] = tmp;
     }
 }
@@ -518,6 +518,13 @@ void Program::onMouseMove(int x, int y)
 
 void Program::onMouseButton(int button, int action, int mods)
 {
+    state.mousePanning = false;
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS && mods & GLFW_MOD_SHIFT)
+    {
+        state.mousePanning = true;
+        return;
+    }
+
     if (images.selected() == nullptr) return;
 
     if (tools.selectedTool()._actionFactory == nullptr) return;

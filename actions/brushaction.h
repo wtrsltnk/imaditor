@@ -3,6 +3,7 @@
 
 #include "baseaction.h"
 #include <glm/glm.hpp>
+#include "../layer.h"
 
 class BrushAction : public BaseAction
 {
@@ -12,10 +13,11 @@ public:
 
 class BrushActionFactory : public BaseActionFactory
 {
-    void paint(Image* image, float color[], const glm::vec2& p);
+    void paint(float color[], const glm::vec2& from, const glm::vec2& to);
     float _size;
     int _lastPosition[2];
     bool _isPainting;
+    Layer _tmpLayer;
     BrushActionFactory();
 public:
     static BrushActionFactory* Instance();

@@ -13,26 +13,33 @@ BrushActionFactory* BrushActionFactory::Instance()
     return &instance;
 }
 
-void BrushActionFactory::paint(Image* image, float color[], const glm::vec2& p)
+void BrushActionFactory::paint(float color[], const glm::vec2& from, const glm::vec2& to)
 {
     if (_isPainting)
     {
-        auto layer = image->_layers[image->_selectedLayer];
+        auto dir = to - from;
+        auto ndir = glm::normalize(dir);
 
-        auto p = (_lastPosition[1] * layer->_size[1] + _lastPosition[0]);
-        for (int b = 0; b < layer->_bpp; b++)
+        glm::vec2 pixelPos = from;
+        byte pixel[4];
+        for (int b = 0; b < this->_tmpLayer._bpp; b++) pixel[b] = color[b] * 255;
+        for (int i = 0; i < glm::length(dir) / glm::length(ndir); i++)
         {
-            layer->_data[p * layer->_bpp + b] = color[b] * 255;
+            // todo : change this to writing the current brush at pixelPos
+            this->_tmpLayer.setPixel<4>(int(pixelPos.x), int(pixelPos.y), pixel);
+            pixelPos += ndir;
         }
 
-        layer->setDirty();
+        this->_tmpLayer.setDirty();
     }
 }
 
 void BrushActionFactory::MouseMove(Image* image, int x, int y)
 {
+    auto from = glm::vec2(_lastPosition[0], _lastPosition[1]);
     _lastPosition[0] = x;
     _lastPosition[1] = y;
+    auto to = glm::vec2(_lastPosition[0], _lastPosition[1]);
 
     for (int i = 0; i < 2; i++)
         if (_lastPosition[i] < 0 || _lastPosition[1] >= image->_size[1])
@@ -40,7 +47,7 @@ void BrushActionFactory::MouseMove(Image* image, int x, int y)
 
     if (_isPainting)
     {
-        paint(image, foreColor, glm::vec2(_lastPosition[0], _lastPosition[1]));
+        paint(foreColor, from, to);
     }
 }
 
@@ -51,11 +58,16 @@ void BrushActionFactory::PrimaryMouseButtonDown(Image* image, bool shift, bool c
             return;
 
     _isPainting = true;
-    paint(image, foreColor, glm::vec2(_lastPosition[0], _lastPosition[1]));
+    auto to = glm::vec2(_lastPosition[0], _lastPosition[1]);
+    byte pixel[4] = { 0, 0, 0, 0 };
+    _tmpLayer.setSize(image->_size, pixel);
+    paint(foreColor, to, to);
 }
 
 void BrushActionFactory::PrimaryMouseButtonUp(Image* image, bool shift, bool ctrl, bool alt, bool super)
 {
+    Layer::overwrite(image->_layers[image->_selectedLayer], &_tmpLayer);
+
     _isPainting = false;
 }
 
