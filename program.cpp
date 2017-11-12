@@ -283,6 +283,13 @@ void Program::Render()
                 .matrix("u_view", scale);
         buffer.render();
 
+        if (tools.selectedTool()._actionFactory != nullptr &&
+                tools.selectedTool()._actionFactory->ToolHelperImage() > 0)
+        {
+            glBindTexture(GL_TEXTURE_2D, tools.selectedTool()._actionFactory->ToolHelperImage());
+            buffer.render();
+        }
+
         buffer.unbind();
     }
 
