@@ -1,7 +1,7 @@
 #ifndef BRUSHES_H
 #define BRUSHES_H
 
-#include <GL/glextl.h>
+#include <glad/glad.h>
 
 class Brush
 {

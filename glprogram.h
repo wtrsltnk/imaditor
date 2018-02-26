@@ -3,7 +3,7 @@
 
 #include <initializer_list>
 #include <string>
-#include <GL/gl.h>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
 
 class GlProgram

@@ -1,7 +1,7 @@
 #ifndef BASEACTION_H
 #define BASEACTION_H
 
-#include <GL/glextl.h>
+#include <glad/glad.h>
 
 class Image;
 

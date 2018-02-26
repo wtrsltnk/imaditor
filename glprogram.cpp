@@ -2,7 +2,6 @@
 #include "shader.h"
 
 #include <glm/gtc/type_ptr.hpp>
-#include <GL/glextl.h>
 
 GlProgram::GlProgram()
     : _program(0)

@@ -1,7 +1,7 @@
 #ifndef GLARRAYBUFFER_H
 #define GLARRAYBUFFER_H
 
-#include <GL/gl.h>
+#include <glad/glad.h>
 
 class GlArrayBuffer
 {

@@ -1,6 +1,5 @@
 
-#define GLEXTL_IMPLEMENTATION
-#include <GL/glextl.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <imgui.h>
@@ -35,7 +34,8 @@ int main(int argc, char *argv[])
     glfwSetWindowSizeCallback(window, Program::ResizeCallback);
     glfwMakeContextCurrent(window);
 
-    glExtLoadAll((PFNGLGETPROC*)glfwGetProcAddress);
+    gladLoadGL();
+//    glExtLoadAll((PFNGLGETPROC*)glfwGetProcAddress);
 
     Program::ResizeCallback(window, 1024, 768);
 

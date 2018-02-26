@@ -1,7 +1,7 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <GL/glextl.h>
+#include <glad/glad.h>
 #include <string>
 
 GLuint LoadShaderProgram(const std::string& shaderName);

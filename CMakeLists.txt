@@ -1,33 +1,39 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.7)
 
 project(imaditor)
+
+list(APPEND CMAKE_PREFIX_PATH "$ENV{userprofile}/.cpppm/install")
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_PREFIX_PATH}/cmake)
 
 find_package(GLFW3)
 
 add_subdirectory(tests)
 
-add_library(nfd
-    nativefiledialog/src/nfd_common.c
-    nativefiledialog/src/nfd_win.cpp
-    )
-
-target_include_directories(nfd
-    PRIVATE nativefiledialog/src/include
-)
-
 if(GLFW3_FOUND)
     find_package(OpenGL REQUIRED)
     find_package(GLM REQUIRED)
+
+    add_library(nfd
+        nativefiledialog/src/nfd_common.c
+        nativefiledialog/src/nfd_win.cpp
+        )
+
+    target_include_directories(nfd
+        PRIVATE nativefiledialog/src/include
+    )
 
     add_library(imgui
         imgui/imgui.cpp
         imgui/imgui_draw.cpp
         imgui_impl_glfw_gl3.cpp
+        glad.c
         )
 
     target_include_directories(imgui
+        PRIVATE "$ENV{userprofile}/.cpppm/install/include"
+        PRIVATE include
         PRIVATE imgui
-        PRIVATE ${GLFW3_INCLUDE_DIR}
         )
 
     add_executable(imaditor
@@ -67,17 +73,16 @@ if(GLFW3_FOUND)
         )
 
     target_include_directories(imaditor
-        PRIVATE ${GLFW3_INCLUDE_DIR}
-        PRIVATE ${GLM_INCLUDE_DIR}
+        PRIVATE "$ENV{userprofile}/.cpppm/install/include"
+        PRIVATE include
         PRIVATE imgui
         PRIVATE nativefiledialog/src/include
         )
 
     target_link_libraries(imaditor
-        imgui nfd
+        imgui nfd glfw
         ${ZLIB_LIBRARIES}
         ${OPENGL_LIBRARIES}
-        ${GLFW3_LIBRARY}
         )
 
     target_compile_features(imaditor

@@ -1,5 +1,4 @@
 #include "glarraybuffer.h"
-#include <GL/glextl.h>
 
 static float g_vertex_buffer_data[] = {
     0.5f,  0.5f,  0.0f,  1.0f, 1.0f,  0.0f,
