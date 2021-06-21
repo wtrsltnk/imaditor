@@ -1,20 +1,18 @@
 #include "images.h"
 #include "stb_image.h"
 
-UploadableImage::UploadableImage(Image* img) : image(img) { }
+UploadableImage::UploadableImage(Image *img) : image(img) {}
 
-Images::Images()
-    : _selectedImage(nullptr)
-{ }
+Images::Images() = default;
 
-Images::~Images() { }
+Images::~Images() {}
 
-void Images::addImage(Image* img)
+void Images::addImage(Image *img)
 {
     _images.push_back(UploadableImage(img));
 }
 
-void Images::select(int index)
+void Images::select(size_t index)
 {
     if (this->_selectedImage != nullptr)
     {
@@ -29,7 +27,7 @@ void Images::select(int index)
     }
 }
 
-Image* Images::selected()
+Image *Images::selected()
 {
     if (this->_selectedImage != nullptr)
     {
@@ -52,7 +50,7 @@ void Images::uploadSelectedImage()
 
     memset(img->image->_data, 0, dataSize);
 
-    for (Layer* layer : img->image->_layers)
+    for (Layer *layer : img->image->_layers)
     {
         if (!layer->_visible) continue;
         for (int y = 0; y < img->image->_size[1]; ++y)

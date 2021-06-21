@@ -1,8 +1,10 @@
 
 #include <glad/glad.h>
+
 #include <GLFW/glfw3.h>
 
 #include <imgui.h>
+
 #include "imgui_impl_glfw_gl3.h"
 
 #include "program.h"
@@ -11,10 +13,13 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+
     if (glfwInit() == GLFW_FALSE)
         return -1;
 
-    GLFWwindow* window = glfwCreateWindow(1024, 768, "IMaditor", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(1024, 768, "IMaditor", NULL, NULL);
     if (window == 0)
     {
         glfwTerminate();
@@ -35,7 +40,7 @@ int main(int argc, char *argv[])
     glfwMakeContextCurrent(window);
 
     gladLoadGL();
-//    glExtLoadAll((PFNGLGETPROC*)glfwGetProcAddress);
+    //    glExtLoadAll((PFNGLGETPROC*)glfwGetProcAddress);
 
     Program::ResizeCallback(window, 1024, 768);
 
@@ -50,7 +55,6 @@ int main(int argc, char *argv[])
             app.Render();
 
             glfwSwapBuffers(window);
-
         }
         app.CleanUp();
     }

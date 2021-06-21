@@ -1,16 +1,20 @@
 #include "image.h"
 #include "stb_image.h"
 
-Image::Image() : _flags(0), _data(nullptr),  _selectedLayer(0)
+Image::Image() = default;
+
+Image::~Image()
 {
-    _size[0] = _size[1] = 256.0f;
+    if (_data != nullptr)
+    {
+        delete[] _data;
+        _data = nullptr;
+    }
 }
 
-Image::~Image() { }
-
-Layer* Image::addLayer()
+Layer *Image::addLayer()
 {
-    byte pixel[4] = { 255, 255, 255, 255 };
+    byte pixel[4] = {255, 255, 255, 255};
     auto layer = Layer::defaultLayer(this->_size, pixel);
     layer->_name = std::string("Layer ") + std::to_string(this->_layers.size() + 1);
     layer->setDirty();
@@ -19,7 +23,7 @@ Layer* Image::addLayer()
     return layer;
 }
 
-void Image::fromFile(const char* filename)
+void Image::fromFile(const char *filename)
 {
     auto layer = Layer::fromFile(filename);
     layer->_name = std::string("Layer ") + std::to_string(this->_layers.size());
@@ -29,7 +33,7 @@ void Image::fromFile(const char* filename)
     this->_layers.push_back(layer);
 }
 
-void Image::selectLayer(int index)
+void Image::selectLayer(size_t index)
 {
     if (index >= 0 && index < this->_layers.size())
         _selectedLayer = index;
@@ -39,7 +43,7 @@ bool Image::isDirty() const
 {
     if (_flags & Dirty) return true;
 
-    for (Layer* layer : this->_layers)
+    for (Layer *layer : this->_layers)
         if (layer->_flags & Dirty) return true;
 
     return false;
@@ -60,8 +64,8 @@ void Image::moveCurrentLayerUp()
     if (this->_selectedLayer >= 1)
     {
         auto tmp = this->_layers[this->_selectedLayer];
-        this->_layers[this->_selectedLayer] = this->_layers[this->_selectedLayer-1];
-        this->_layers[this->_selectedLayer-1] = tmp;
+        this->_layers[this->_selectedLayer] = this->_layers[this->_selectedLayer - 1];
+        this->_layers[this->_selectedLayer - 1] = tmp;
         this->_selectedLayer--;
         this->setDirty();
     }
@@ -69,11 +73,11 @@ void Image::moveCurrentLayerUp()
 
 void Image::moveCurrentLayerDown()
 {
-    if (this->_selectedLayer < this->_layers.size()-1)
+    if (this->_selectedLayer < this->_layers.size() - 1)
     {
         auto tmp = this->_layers[this->_selectedLayer];
-        this->_layers[this->_selectedLayer] = this->_layers[this->_selectedLayer+1];
-        this->_layers[this->_selectedLayer+1] = tmp;
+        this->_layers[this->_selectedLayer] = this->_layers[this->_selectedLayer + 1];
+        this->_layers[this->_selectedLayer + 1] = tmp;
         this->_selectedLayer++;
         this->setDirty();
     }

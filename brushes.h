@@ -8,7 +8,7 @@ class Brush
 public:
     Brush();
 
-    void upload(int w, int h, int b, unsigned char* data);
+    void upload(int w, int h, int b, unsigned char *data);
 
     GLuint _textureIndex;
 };
@@ -20,7 +20,7 @@ public:
 
     void init();
 
-    int _count;
+    int _count = 0;
     Brush _brushes[10];
 };
 

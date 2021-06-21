@@ -16,22 +16,28 @@ public:
     Layer();
 
     std::string _name;
-    int _flags;
-    bool _visible;
+    int _flags = 0;
+    bool _visible = true;
     bool isVisible() const { return _visible; }
-    void toggleVisibility() { _visible = !_visible; setDirty(); }
+    void toggleVisibility()
+    {
+        _visible = !_visible;
+        setDirty();
+    }
     void setDirty() { _flags |= Dirty; }
     int dataSize() const;
     void setSize(int size[2]);
     void setSize(int w, int h);
     void setSize(int size[2], const byte pixel[]);
     void setSize(int w, int h, const byte pixel[]);
-    template <int N> const byte* pixel(int x, int y) const
+    template <int N>
+    const byte *pixel(int x, int y) const
     {
         int position = y * _size[1] + x;
         return &this->_data[position * N];
     }
-    template <int N> void setPixel(int x, int y, const byte pixel[])
+    template <int N>
+    void setPixel(int x, int y, const byte pixel[])
     {
         int position = y * _size[1] + x;
         for (int b = 0; b < N; b++)
@@ -40,17 +46,17 @@ public:
         }
     }
 
-    float _alpha;
-    int _alphaMode;
+    float _alpha = 1.0f;
+    int _alphaMode = 0;
 
-    int _offset[2];
-    int _size[2];
-    int _bpp;
-    unsigned char* _data;
+    int _offset[2] = {0, 0};
+    int _size[2] = {0, 0};
+    int _bpp = 4;
+    unsigned char *_data = nullptr;
 
-    static Layer* defaultLayer(int size[2], const byte pixel[]);
-    static Layer* fromFile(const char* filename);
-    static void overwrite(Layer* a, Layer* b);
+    static Layer *defaultLayer(int size[2], const byte pixel[]);
+    static Layer *fromFile(const char *filename);
+    static void overwrite(Layer *a, Layer *b);
 };
 
 #endif // LAYER_H

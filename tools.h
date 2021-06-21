@@ -8,13 +8,13 @@ class Tool
 {
 public:
     std::string _name;
-    const char* _icon;
-    class BaseActionFactory* _actionFactory;
+    const char *_icon = nullptr;
+    class BaseActionFactory *_actionFactory = nullptr;
 };
 
 class Tools
 {
-    int _selectedTool;
+    int _selectedTool = 0;
     std::vector<Tool> _tools;
 
 public:
@@ -23,11 +23,10 @@ public:
 
     void selectTool(int index);
     int toolCount() const;
-    const Tool& selectedTool() const;
+    const Tool &selectedTool() const;
     int selectedToolIndex() const;
     bool isSelected(int index) const;
-    const Tool& operator [] (int index) const;
-
+    const Tool &operator[](int index) const;
 };
 
 #endif // TOOLS_H

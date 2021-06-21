@@ -1,18 +1,21 @@
 #include "program.h"
 #include <glad/glad.h>
-#include <nfd.h>
+
 #include <imgui.h>
 #include <imgui_internal.h>
+
 #include "imgui_impl_glfw_gl3.h"
 
-#include "state.h"
-#include "images.h"
-#include "font-icons.h"
-#include "shader.h"
-#include "tools.h"
-#include "glprogram.h"
-#include "glarraybuffer.h"
+#include <nfd.h>
+
 #include "actions/baseaction.h"
+#include "font-icons.h"
+#include "glarraybuffer.h"
+#include "glprogram.h"
+#include "images.h"
+#include "shader.h"
+#include "state.h"
+#include "tools.h"
 
 #define IMGUI_TABS_IMPLEMENTATION
 #include "imgui_tabs.h"
@@ -20,14 +23,14 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include <iostream>
-#include <sstream>
-#include <string>
 #include <algorithm>
-#include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
@@ -37,7 +40,8 @@ static GlProgram imageShader;
 static GlProgram backgroundShader;
 static GlArrayBuffer buffer;
 
-static struct {
+static struct
+{
     bool show_toolbar = false;
     bool show_tooloptions = false;
     bool show_content = false;
@@ -59,19 +63,16 @@ static struct {
 
 } state;
 
-Program::Program(GLFWwindow* window)
+Program::Program(GLFWwindow *window)
     : _window(window)
 {
-    glfwSetWindowUserPointer(this->_window, static_cast<void*>(this));
+    glfwSetWindowUserPointer(this->_window, static_cast<void *>(this));
 }
 
 Program::~Program()
 {
     glfwSetWindowUserPointer(this->_window, nullptr);
 }
-
-
-
 
 static std::string vertexGlsl = "#version 150\n\
         in vec3 vertex;\
@@ -128,25 +129,19 @@ void main()\
         color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\
 }";
 
-static GLuint blocksProgram;
-static GLuint u_projection;
-static GLuint u_view;
-static GLuint vertexbuffer;
-static GLuint texture;
-
 bool Program::SetUp()
 {
-    ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF("../imaditor/imgui/extra_fonts/Roboto-Medium.ttf", 16.0f);
+    ImGuiIO &io = ImGui::GetIO();
+    io.Fonts->AddFontFromFileTTF("imgui/extra_fonts/Roboto-Medium.ttf", 16.0f);
 
     ImFontConfig config;
     config.MergeMode = true;
 
-    static const ImWchar icons_ranges_fontawesome[] = { 0xf000, 0xf3ff, 0 };
-    io.Fonts->AddFontFromFileTTF("../imaditor/fontawesome-webfont.ttf", 18.0f, &config, icons_ranges_fontawesome);
+    static const ImWchar icons_ranges_fontawesome[] = {0xf000, 0xf3ff, 0};
+    io.Fonts->AddFontFromFileTTF("fontawesome-webfont.ttf", 18.0f, &config, icons_ranges_fontawesome);
 
-    static const ImWchar icons_ranges_googleicon[] = { 0xe000, 0xeb4c, 0 };
-    io.Fonts->AddFontFromFileTTF("../imaditor/MaterialIcons-Regular.ttf", 18.0f, &config, icons_ranges_googleicon);
+    static const ImWchar icons_ranges_googleicon[] = {0xe000, 0xeb4c, 0};
+    io.Fonts->AddFontFromFileTTF("MaterialIcons-Regular.ttf", 18.0f, &config, icons_ranges_googleicon);
 
     brushes.init();
 
@@ -157,12 +152,12 @@ bool Program::SetUp()
     return true;
 }
 
-float foreColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-float backColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+float foreColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+float backColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 static int selectedTab = 0;
-static const char** tabNames = nullptr;
-static int tabNameAllocCount = 0;
+static const char **tabNames = nullptr;
+static size_t tabNameAllocCount = 0;
 const int dockbarWidth = 250;
 const int menubarHeight = 22;
 const int optionsbarHeight = 45;
@@ -171,15 +166,14 @@ const int toolboxWidth = 45;
 
 void updateTabNames()
 {
-    if (tabNames != nullptr) delete []tabNames;
+    if (tabNames != nullptr) delete[] tabNames;
     if (images._images.size() >= tabNameAllocCount)
     {
-        delete []tabNames;
         tabNameAllocCount += 32;
-        tabNames = new const char*[tabNameAllocCount];
+        tabNames = new const char *[tabNameAllocCount];
     }
 
-    for (int i = 0; i < images._images.size(); ++i)
+    for (size_t i = 0; i < images._images.size(); ++i)
     {
         auto tmp = new char[images._images[i].image->_name.size()];
         strcpy(tmp, images._images[i].image->_name.c_str());
@@ -187,7 +181,7 @@ void updateTabNames()
     }
 }
 
-void addImage(Image* img)
+void addImage(Image *img)
 {
     selectedTab = images._images.size();
     images._images.push_back(img);
@@ -255,7 +249,7 @@ void moveCurrentLayerDown()
 void Program::Render()
 {
     glViewport(0, 0, state.width, state.height);
-    glClearColor(114/255.0f, 144/255.0f, 154/255.0f, 255/255.0f);
+    glClearColor(114 / 255.0f, 144 / 255.0f, 154 / 255.0f, 255 / 255.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_BLEND);
@@ -270,22 +264,22 @@ void Program::Render()
         auto translate = glm::translate(zoom, glm::vec3(state.translatex, state.translatey, 0.0f));
         auto scale = glm::scale(translate, glm::vec3(img->_size[0], img->_size[1], 1.0f));
 
-        auto projection = glm::ortho(-(state.width/2.0f), (state.width/2.0f), (state.height/2.0f), -(state.height/2.0f));
+        auto projection = glm::ortho(-(state.width / 2.0f), (state.width / 2.0f), (state.height / 2.0f), -(state.height / 2.0f));
 
         buffer.bind();
 
         backgroundShader.bind()
-                .matrix("u_projection", projection)
-                .matrix("u_view", scale);
+            .matrix("u_projection", projection)
+            .matrix("u_view", scale);
         buffer.render();
 
         imageShader.bind()
-                .matrix("u_projection", projection)
-                .matrix("u_view", scale);
+            .matrix("u_projection", projection)
+            .matrix("u_view", scale);
         buffer.render();
 
         if (tools.selectedTool()._actionFactory != nullptr &&
-                tools.selectedTool()._actionFactory->ToolHelperImage() > 0)
+            tools.selectedTool()._actionFactory->ToolHelperImage() > 0)
         {
             glBindTexture(GL_TEXTURE_2D, tools.selectedTool()._actionFactory->ToolHelperImage());
             buffer.render();
@@ -306,26 +300,46 @@ void Program::Render()
                 {
                     if (ImGui::MenuItem("New", "CTRL+N")) newImage();
                     if (ImGui::MenuItem("Open", "CTRL+O")) openImage();
-                    if (ImGui::MenuItem("Save", "CTRL+S")) { }
-                    if (ImGui::MenuItem("Save As..", "CTRL+SHIFT+Z")) { }
-                    if (ImGui::MenuItem("Close")) { }
+                    if (ImGui::MenuItem("Save", "CTRL+S"))
+                    {
+                    }
+                    if (ImGui::MenuItem("Save As..", "CTRL+SHIFT+Z"))
+                    {
+                    }
+                    if (ImGui::MenuItem("Close"))
+                    {
+                    }
                     ImGui::Separator();
-                    if (ImGui::MenuItem("Quit")) { }
+                    if (ImGui::MenuItem("Quit"))
+                    {
+                    }
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Edit"))
                 {
-                    if (ImGui::MenuItem("Undo", "CTRL+Z")) { }
-                    if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) { }  // Disabled item
+                    if (ImGui::MenuItem("Undo", "CTRL+Z"))
+                    {
+                    }
+                    if (ImGui::MenuItem("Redo", "CTRL+Y", false, false))
+                    {
+                    } // Disabled item
                     ImGui::Separator();
-                    if (ImGui::MenuItem("Cut", "CTRL+X")) { }
-                    if (ImGui::MenuItem("Copy", "CTRL+C")) { }
-                    if (ImGui::MenuItem("Paste", "CTRL+V")) { }
+                    if (ImGui::MenuItem("Cut", "CTRL+X"))
+                    {
+                    }
+                    if (ImGui::MenuItem("Copy", "CTRL+C"))
+                    {
+                    }
+                    if (ImGui::MenuItem("Paste", "CTRL+V"))
+                    {
+                    }
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Help"))
                 {
-                    if (ImGui::MenuItem("About IMaditor")) { }
+                    if (ImGui::MenuItem("About IMaditor"))
+                    {
+                    }
                     ImGui::EndMenu();
                 }
                 ImGui::EndMainMenuBar();
@@ -335,7 +349,7 @@ void Program::Render()
 
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.20f, 0.20f, 0.47f, 0.60f));
         {
-            ImGui::Begin("optionsBar", &state.show_tooloptions, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("optionsBar", &state.show_tooloptions, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(0, menubarHeight));
                 ImGui::SetWindowSize(ImVec2(state.width, optionsbarHeight));
@@ -346,7 +360,7 @@ void Program::Render()
             }
             ImGui::End();
 
-            ImGui::Begin("toolbox", &state.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("toolbox", &state.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(0, menubarHeight + optionsbarHeight));
                 ImGui::SetWindowSize(ImVec2(toolboxWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
@@ -364,7 +378,7 @@ void Program::Render()
 
             ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
             {
-                ImGui::Begin("content", &(state.show_content), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+                ImGui::Begin("content", &(state.show_content), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
                 {
                     ImGui::SetWindowPos(ImVec2(state.contentPosition.x, state.contentPosition.y));
                     ImGui::SetWindowSize(ImVec2(state.contentSize.x, state.contentSize.y));
@@ -381,7 +395,7 @@ void Program::Render()
             }
             ImGui::PopStyleColor();
 
-            ImGui::Begin("dockbar", &(state.show_dockbar), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("dockbar", &(state.show_dockbar), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, menubarHeight + optionsbarHeight));
                 ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
@@ -389,7 +403,8 @@ void Program::Render()
                 if (ImGui::CollapsingHeader("Color options", "colors", true, true))
                 {
                     static int e = 0;
-                    ImGui::RadioButton("Fore", &e, 0); ImGui::SameLine();
+                    ImGui::RadioButton("Fore", &e, 0);
+                    ImGui::SameLine();
                     ImGui::RadioButton("Back", &e, 1);
                     if (e == 0)
                     {
@@ -417,7 +432,7 @@ void Program::Render()
 
                         ImGui::Separator();
 
-                        for (int i = 0; i < images.selected()->_layers.size(); i++)
+                        for (size_t i = 0; i < images.selected()->_layers.size(); i++)
                         {
                             auto layer = images.selected()->_layers[i];
                             ImGui::PushID(i);
@@ -457,7 +472,7 @@ void Program::Render()
             }
             ImGui::End();
 
-            ImGui::Begin("statusbar", &(state.show_content), ImGuiWindowFlags_NoResize |ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("statusbar", &(state.show_content), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(0, state.height - statebarHeight));
                 ImGui::SetWindowSize(ImVec2(state.width, statebarHeight));
@@ -481,6 +496,10 @@ void Program::Render()
 
 void Program::onKeyAction(int key, int scancode, int action, int mods)
 {
+    (void)key;
+    (void)scancode;
+    (void)action;
+
     state.shiftPressed = (mods & GLFW_MOD_SHIFT);
     state.ctrlPressed = (mods & GLFW_MOD_CONTROL);
 }
@@ -511,7 +530,7 @@ void Program::onMouseMove(int x, int y)
         auto img = images.selected();
         auto zoom = glm::scale(glm::mat4(), glm::vec3(state.zoom / 100.0f));
         auto translate = glm::translate(zoom, glm::vec3(state.translatex, -state.translatey, 0.0f));
-        auto projection = glm::ortho(-(state.width/2.0f), (state.width/2.0f), (state.height/2.0f), -(state.height/2.0f));
+        auto projection = glm::ortho(-(state.width / 2.0f), (state.width / 2.0f), (state.height / 2.0f), -(state.height / 2.0f));
 
         auto pp = glm::unProject(glm::vec3(x, y, 0.0f),
                                  translate, projection,
@@ -576,6 +595,8 @@ void Program::onMouseButton(int button, int action, int mods)
 
 void Program::onScroll(int x, int y)
 {
+    (void)x;
+
     if (state.shiftPressed)
     {
         state.translatex += (y * 5);
@@ -595,46 +616,46 @@ void Program::onResize(int width, int height)
 {
     state.width = width;
     state.height = height;
-    state.contentPosition = glm::vec2 (toolboxWidth, menubarHeight + optionsbarHeight);
-    state.contentSize = glm::vec2 (state.width - toolboxWidth - dockbarWidth, state.height - menubarHeight - optionsbarHeight);
+    state.contentPosition = glm::vec2(toolboxWidth, menubarHeight + optionsbarHeight);
+    state.contentSize = glm::vec2(state.width - toolboxWidth - dockbarWidth, state.height - menubarHeight - optionsbarHeight);
 
     glViewport(0, 0, width, height);
 }
 
 void Program::CleanUp()
-{ }
+{}
 
-void Program::KeyActionCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void Program::KeyActionCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+    auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onKeyAction(key, scancode, action, mods);
 }
 
-void Program::CursorPosCallback(GLFWwindow* window, double x, double y)
+void Program::CursorPosCallback(GLFWwindow *window, double x, double y)
 {
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+    auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onMouseMove(int(x), int(y));
 }
 
-void Program::ScrollCallback(GLFWwindow* window, double x, double y)
+void Program::ScrollCallback(GLFWwindow *window, double x, double y)
 {
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+    auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onScroll(int(x), int(y));
 }
 
-void Program::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+void Program::MouseButtonCallback(GLFWwindow *window, int button, int action, int mods)
 {
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+    auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onMouseButton(button, action, mods);
 }
 
-void Program::ResizeCallback(GLFWwindow* window, int width, int height)
+void Program::ResizeCallback(GLFWwindow *window, int width, int height)
 {
-    auto app = static_cast<Program*>(glfwGetWindowUserPointer(window));
+    auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onResize(width, height);
 }
