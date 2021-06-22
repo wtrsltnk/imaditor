@@ -21,7 +21,10 @@ target_include_directories(nfd
 add_library(imgui
     imgui/imgui.cpp
     imgui/imgui_draw.cpp
-    imgui_impl_glfw_gl3.cpp
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
     glad.c
     )
 
@@ -32,6 +35,10 @@ target_include_directories(imgui
 
 target_link_libraries(imgui
     PRIVATE glfw
+    )
+
+target_compile_definitions(imgui
+    PUBLIC IMGUI_USE_WCHAR32
     )
 
 add_executable(imaditor
@@ -54,6 +61,7 @@ add_executable(imaditor
     log.h
     tools.cpp
     tools.h
+    imgui_tabs.cpp
     imgui_tabs.h
     image.cpp
     image.h

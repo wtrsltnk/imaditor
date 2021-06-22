@@ -5,7 +5,8 @@
 
 #include <imgui.h>
 
-#include "imgui_impl_glfw_gl3.h"
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include "program.h"
 
@@ -19,6 +20,9 @@ int main(int argc, char *argv[])
     if (glfwInit() == GLFW_FALSE)
         return -1;
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+
     GLFWwindow *window = glfwCreateWindow(1024, 768, "IMaditor", NULL, NULL);
     if (window == 0)
     {
@@ -27,9 +31,6 @@ int main(int argc, char *argv[])
     }
 
     Program app(window);
-
-    // Setup ImGui binding
-    ImGui_ImplGlfwGL3_Init(window, true);
 
     glfwSetKeyCallback(window, Program::KeyActionCallback);
     glfwSetCursorPosCallback(window, Program::CursorPosCallback);
@@ -40,7 +41,21 @@ int main(int argc, char *argv[])
     glfwMakeContextCurrent(window);
 
     gladLoadGL();
-    //    glExtLoadAll((PFNGLGETPROC*)glfwGetProcAddress);
+
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init();
 
     Program::ResizeCallback(window, 1024, 768);
 

@@ -4,12 +4,16 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-#include "imgui_impl_glfw_gl3.h"
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <nfd.h>
 
 #include "actions/baseaction.h"
-#include "font-icons.h"
+
+#include <IconsFontAwesome4.h>
+#include <IconsMaterialDesign.h>
+
 #include "glarraybuffer.h"
 #include "glprogram.h"
 #include "images.h"
@@ -132,16 +136,18 @@ void main()\
 bool Program::SetUp()
 {
     ImGuiIO &io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF("imgui/extra_fonts/Roboto-Medium.ttf", 16.0f);
+
+    io.Fonts->AddFontFromFileTTF("imgui/misc/fonts/Roboto-Medium.ttf", 16.0f);
 
     ImFontConfig config;
     config.MergeMode = true;
+    config.PixelSnapH = true;
 
-    static const ImWchar icons_ranges_fontawesome[] = {0xf000, 0xf3ff, 0};
-    io.Fonts->AddFontFromFileTTF("fontawesome-webfont.ttf", 18.0f, &config, icons_ranges_fontawesome);
+    static const ImWchar icons_ranges_fontawesome[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
+    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FA, 16.0f, &config, icons_ranges_fontawesome);
 
-    static const ImWchar icons_ranges_googleicon[] = {0xe000, 0xeb4c, 0};
-    io.Fonts->AddFontFromFileTTF("MaterialIcons-Regular.ttf", 18.0f, &config, icons_ranges_googleicon);
+    static const ImWchar icons_ranges_googleicon[] = {ICON_MIN_MD, ICON_MAX_MD, 0};
+    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_MD, 16.0f, &config, icons_ranges_googleicon);
 
     brushes.init();
 
@@ -156,7 +162,7 @@ float foreColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 float backColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 static int selectedTab = 0;
-static const char **tabNames = nullptr;
+static std::vector<std::string> tabNames;
 static size_t tabNameAllocCount = 0;
 const int dockbarWidth = 250;
 const int menubarHeight = 22;
@@ -166,18 +172,15 @@ const int toolboxWidth = 45;
 
 void updateTabNames()
 {
-    if (tabNames != nullptr) delete[] tabNames;
     if (images._images.size() >= tabNameAllocCount)
     {
         tabNameAllocCount += 32;
-        tabNames = new const char *[tabNameAllocCount];
+        tabNames.resize(tabNameAllocCount);
     }
 
     for (size_t i = 0; i < images._images.size(); ++i)
     {
-        auto tmp = new char[images._images[i].image->_name.size()];
-        strcpy(tmp, images._images[i].image->_name.c_str());
-        tabNames[i] = tmp;
+        tabNames[i] = images._images[i].image->_name;
     }
 }
 
@@ -248,6 +251,10 @@ void moveCurrentLayerDown()
 
 void Program::Render()
 {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
     glViewport(0, 0, state.width, state.height);
     glClearColor(114 / 255.0f, 144 / 255.0f, 154 / 255.0f, 255 / 255.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -260,7 +267,7 @@ void Program::Render()
         auto img = images.selected();
         if (img->isDirty()) images.uploadSelectedImage();
 
-        auto zoom = glm::scale(glm::mat4(), glm::vec3(state.zoom / 100.0f));
+        auto zoom = glm::scale(glm::mat4(1.0f), glm::vec3(state.zoom / 100.0f));
         auto translate = glm::translate(zoom, glm::vec3(state.translatex, state.translatey, 0.0f));
         auto scale = glm::scale(translate, glm::vec3(img->_size[0], img->_size[1], 1.0f));
 
@@ -287,8 +294,6 @@ void Program::Render()
 
         buffer.unbind();
     }
-
-    ImGui_ImplGlfwGL3_NewFrame();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 1.0f);
     {
@@ -355,7 +360,7 @@ void Program::Render()
                 ImGui::SetWindowSize(ImVec2(state.width, optionsbarHeight));
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4());
-                ImGui::Button(FontAwesomeIcons::FA_PAW, ImVec2(30, 30));
+                ImGui::Button(ICON_FA_PAW, ImVec2(30, 30));
                 ImGui::PopStyleColor(1);
             }
             ImGui::End();
@@ -400,7 +405,8 @@ void Program::Render()
                 ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, menubarHeight + optionsbarHeight));
                 ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
 
-                if (ImGui::CollapsingHeader("Color options", "colors", true, true))
+                static bool colorOptionsOpen = true;
+                if (ImGui::CollapsingHeader("Color options", &colorOptionsOpen, ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     static int e = 0;
                     ImGui::RadioButton("Fore", &e, 0);
@@ -420,15 +426,16 @@ void Program::Render()
 
                 if (images.hasImages())
                 {
-                    if (ImGui::CollapsingHeader("Layer options", "layers", true, true))
+                    static bool layerOptionsOpen = true;
+                    if (ImGui::CollapsingHeader("Layer options", &layerOptionsOpen, ImGuiTreeNodeFlags_DefaultOpen))
                     {
-                        if (ImGui::Button(FontAwesomeIcons::FA_PLUS, ImVec2(30.0f, 30.0f))) addLayer();
+                        if (ImGui::Button(ICON_FA_PLUS, ImVec2(30.0f, 30.0f))) addLayer();
                         ImGui::SameLine();
-                        if (ImGui::Button(FontAwesomeIcons::FA_MINUS, ImVec2(30.0f, 30.0f))) removeCurrentLayer();
+                        if (ImGui::Button(ICON_FA_MINUS, ImVec2(30.0f, 30.0f))) removeCurrentLayer();
                         ImGui::SameLine();
-                        if (ImGui::Button(FontAwesomeIcons::FA_ARROW_UP, ImVec2(30.0f, 30.0f))) moveCurrentLayerUp();
+                        if (ImGui::Button(ICON_FA_ARROW_UP, ImVec2(30.0f, 30.0f))) moveCurrentLayerUp();
                         ImGui::SameLine();
-                        if (ImGui::Button(FontAwesomeIcons::FA_ARROW_DOWN, ImVec2(30.0f, 30.0f))) moveCurrentLayerDown();
+                        if (ImGui::Button(ICON_FA_ARROW_DOWN, ImVec2(30.0f, 30.0f))) moveCurrentLayerDown();
 
                         ImGui::Separator();
 
@@ -438,9 +445,9 @@ void Program::Render()
                             ImGui::PushID(i);
                             auto title = layer->_name;
                             if (images.selected()->_selectedLayer == i) title += " (selected)";
-                            if (ImGui::TreeNode("layer_node", title.c_str()))
+                            if (ImGui::TreeNode("layer_node", "%s", title.c_str()))
                             {
-                                if (ImGui::Button(layer->isVisible() ? FontAwesomeIcons::FA_EYE : FontAwesomeIcons::FA_EYE_SLASH, ImVec2(30, 30)))
+                                if (ImGui::Button(layer->isVisible() ? ICON_FA_EYE : ICON_FA_EYE_SLASH, ImVec2(30, 30)))
                                 {
                                     layer->toggleVisibility();
                                 }
@@ -461,11 +468,13 @@ void Program::Render()
                     }
                 }
 
-                if (ImGui::CollapsingHeader("Brush options", "tools", true, true))
+                static bool brushOptionsOpen = true;
+                if (ImGui::CollapsingHeader("Brush options", &brushOptionsOpen, ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     for (int i = 0; i < brushes._count; ++i)
                     {
-                        ImGui::ImageButton((ImTextureID)(brushes._brushes[i]._textureIndex), ImVec2(30, 30));
+                        auto textureId = reinterpret_cast<ImTextureID>(brushes._brushes[i]._textureIndex);
+                        ImGui::ImageButton(textureId, ImVec2(30, 30));
                     }
                     ImGui::Separator();
                 }
@@ -492,6 +501,8 @@ void Program::Render()
     ImGui::PopStyleVar();
 
     ImGui::Render();
+
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void Program::onKeyAction(int key, int scancode, int action, int mods)
