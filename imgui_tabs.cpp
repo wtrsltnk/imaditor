@@ -2,7 +2,7 @@
 
 namespace ImGui {
 
-IMGUI_API bool TabLabels(const std::vector<std::string> &tabLabels, int tabSize, int &tabIndex, int *tabOrder) {
+IMGUI_API bool TabLabels(const std::vector<std::string> &tabLabels, size_t tabSize, size_t &tabIndex, int *tabOrder) {
     ImGuiStyle& style = ImGui::GetStyle();
 
     const ImVec2 itemSpacing =  style.ItemSpacing;

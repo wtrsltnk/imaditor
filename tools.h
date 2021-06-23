@@ -14,19 +14,19 @@ public:
 
 class Tools
 {
-    int _selectedTool = 0;
+    size_t _selectedTool = 0;
     std::vector<Tool> _tools;
 
 public:
     Tools();
     virtual ~Tools();
 
-    void selectTool(int index);
-    int toolCount() const;
+    void selectTool(size_t index);
+    size_t toolCount() const;
     const Tool &selectedTool() const;
-    int selectedToolIndex() const;
-    bool isSelected(int index) const;
-    const Tool &operator[](int index) const;
+    size_t selectedToolIndex() const;
+    bool isSelected(size_t index) const;
+    const Tool &operator[](size_t index) const;
 };
 
 #endif // TOOLS_H

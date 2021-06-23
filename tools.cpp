@@ -25,9 +25,9 @@ Tools::Tools()
     _tools.push_back(Tool({"Clone brush", ICON_FA_QUESTION, nullptr}));
     _tools.push_back(Tool({"Color replacer", ICON_FA_CLONE, nullptr}));
     _tools.push_back(Tool({"Retouch brush", ICON_FA_HAND_O_DOWN, nullptr}));
-    _tools.push_back(Tool({"Scratch remover", ICON_FA_QUESTION, nullptr}));
+    //    _tools.push_back(Tool({"Scratch remover", ICON_FA_QUESTION, nullptr}));
     _tools.push_back(Tool({"Erase", ICON_FA_ERASER, EraseActionFactory::Instance()}));
-    _tools.push_back(Tool({"Picture tube", ICON_FA_QUESTION, nullptr}));
+    //    _tools.push_back(Tool({"Picture tube", ICON_FA_QUESTION, nullptr}));
     _tools.push_back(Tool({"Airbrush", ICON_FA_QUESTION, nullptr}));
     _tools.push_back(Tool({"Flood fill", ICON_FA_TINT, FloodFillActionFactory::Instance()}));
     _tools.push_back(Tool({"Text", ICON_FA_FONT, nullptr}));
@@ -38,19 +38,19 @@ Tools::Tools()
 
 Tools::~Tools() {}
 
-void Tools::selectTool(int index)
+void Tools::selectTool(size_t index)
 {
     this->_selectedTool = index;
     std::cout << "Selecting tool: " << index << std::endl;
 }
 
-int Tools::toolCount() const { return this->_tools.size(); }
+size_t Tools::toolCount() const { return this->_tools.size(); }
 
-const Tool &Tools::operator[](int index) const
+const Tool &Tools::operator[](size_t index) const
 {
     static Tool defaultTool;
 
-    if (index >= 0 && index < this->_tools.size())
+    if (index < this->_tools.size())
     {
         return this->_tools[index];
     }
@@ -62,7 +62,7 @@ const Tool &Tools::selectedTool() const
 {
     static Tool defaultTool;
 
-    if (this->_selectedTool >= 0 && this->_selectedTool < this->_tools.size())
+    if (this->_selectedTool < this->_tools.size())
     {
         return this->_tools[this->_selectedTool];
     }
@@ -70,12 +70,12 @@ const Tool &Tools::selectedTool() const
     return defaultTool;
 }
 
-int Tools::selectedToolIndex() const
+size_t Tools::selectedToolIndex() const
 {
     return this->_selectedTool;
 }
 
-bool Tools::isSelected(int index) const
+bool Tools::isSelected(size_t index) const
 {
     return this->_selectedTool == index;
 }

@@ -20,7 +20,7 @@ namespace ImGui {
     ImGui::Text("\nTab Page For Tab: \"%s\" here.\n",tabNames[tabSelected]);
 */
 
-IMGUI_API bool TabLabels(const std::vector<std::string> &tabNames, int tabSize, int &tabIndex, int *tabOrder = NULL);
+IMGUI_API bool TabLabels(const std::vector<std::string> &tabNames, size_t tabSize, size_t &tabIndex, int *tabOrder = NULL);
 IMGUI_API bool ColorPicker(const char *label, float col[3]);
 
 } // namespace ImGui

@@ -38,11 +38,11 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
-static Tools tools;
-static Images images;
-static GlProgram imageShader;
-static GlProgram backgroundShader;
-static GlArrayBuffer buffer;
+Tools tools;
+Images images;
+GlProgram imageShader;
+GlProgram backgroundShader;
+GlArrayBuffer buffer;
 
 static struct
 {
@@ -50,8 +50,8 @@ static struct
     bool show_tooloptions = false;
     bool show_content = false;
     bool show_dockbar = false;
-    float width = 200.0f;
-    float height = 300.0f;
+    int width = 200;
+    int height = 300;
     int mousex = 0;
     int mousey = 0;
     int mouseImagex = 0;
@@ -78,91 +78,63 @@ Program::~Program()
     glfwSetWindowUserPointer(this->_window, nullptr);
 }
 
-static std::string vertexGlsl = "#version 150\n\
-        in vec3 vertex;\
-in vec2 texcoord;\
-\
-uniform mat4 u_projection;\
-uniform mat4 u_view;\
-\
-out vec2 f_texcoord;\
-\
-void main()\
-{\
-    gl_Position = u_projection * u_view * vec4(vertex.xyz, 1.0);\
-    f_texcoord = texcoord;\
-}";
+#define GLSL(src) "#version 150\n" #src
 
-static std::string fragmentGlsl = "#version 150\n\
-        uniform sampler2D u_texture;\
-\
-in vec2 f_texcoord;\
-\
-out vec4 color;\
-\
-void main()\
-{\
-    color = texture(u_texture, f_texcoord);\
-}";
+std::string vertexGlsl = GLSL(
+    in vec3 vertex;
+    in vec2 texcoord;
 
-static std::string vertexBlocksGlsl = "#version 150\n\
-        in vec3 vertex;\
-in vec2 texcoord;\
-\
-uniform mat4 u_projection;\
-uniform mat4 u_view;\
-\
-out vec2 f_texcoord;\
-\
-void main()\
-{\
-    gl_Position = u_projection * u_view * vec4(vertex.xyz, 1.0);\
-    f_texcoord = texcoord;\
-}";
+    uniform mat4 u_projection;
+    uniform mat4 u_view;
 
-static std::string fragmentBlocksGlsl = "#version 150\n\
-        in vec2 f_texcoord;\
-out vec4 color;\
-\
-void main()\
-{\
-    if (int(gl_FragCoord.x) % 32 < 16 && int(gl_FragCoord.y) % 32 > 16\
-            || int(gl_FragCoord.x) % 32 > 16 && int(gl_FragCoord.y) % 32 < 16)\
-        color = vec4(0.9f, 0.9f, 0.92f, 1.0f);\
-    else\
-        color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\
-}";
+    out vec2 f_texcoord;
 
-bool Program::SetUp()
-{
-    ImGuiIO &io = ImGui::GetIO();
+    void main() {
+        gl_Position = u_projection * u_view * vec4(vertex.xyz, 1.0);
+        f_texcoord = texcoord;
+    });
 
-    io.Fonts->AddFontFromFileTTF("imgui/misc/fonts/Roboto-Medium.ttf", 16.0f);
+std::string fragmentGlsl = GLSL(
+    uniform sampler2D u_texture;
 
-    ImFontConfig config;
-    config.MergeMode = true;
-    config.PixelSnapH = true;
+    in vec2 f_texcoord;
 
-    static const ImWchar icons_ranges_fontawesome[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
-    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FA, 16.0f, &config, icons_ranges_fontawesome);
+    out vec4 color;
 
-    static const ImWchar icons_ranges_googleicon[] = {ICON_MIN_MD, ICON_MAX_MD, 0};
-    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_MD, 16.0f, &config, icons_ranges_googleicon);
+    void main() {
+        color = texture(u_texture, f_texcoord);
+    });
 
-    brushes.init();
+std::string vertexBlocksGlsl = GLSL(
+    in vec3 vertex;
+    in vec2 texcoord;
 
-    imageShader.init(vertexGlsl.c_str(), fragmentGlsl.c_str());
-    backgroundShader.init(vertexBlocksGlsl.c_str(), fragmentBlocksGlsl.c_str());
-    buffer.init();
+    uniform mat4 u_projection;
+    uniform mat4 u_view;
 
-    return true;
-}
+    out vec2 f_texcoord;
+
+    void main() {
+        gl_Position = u_projection * u_view * vec4(vertex.xyz, 1.0);
+        f_texcoord = texcoord;
+    });
+
+std::string fragmentBlocksGlsl = GLSL(
+    in vec2 f_texcoord;
+    out vec4 color;
+
+    void main() {
+        if (int(gl_FragCoord.x) % 32 < 16 && int(gl_FragCoord.y) % 32 > 16 || int(gl_FragCoord.x) % 32 > 16 && int(gl_FragCoord.y) % 32 < 16)
+            color = vec4(0.9f, 0.9f, 0.92f, 1.0f);
+        else
+            color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    });
 
 float foreColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 float backColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-static int selectedTab = 0;
-static std::vector<std::string> tabNames;
+static size_t selectedTab = 0;
+std::vector<std::string> tabNames;
 static size_t tabNameAllocCount = 0;
 const int dockbarWidth = 250;
 const int menubarHeight = 22;
@@ -247,6 +219,33 @@ void moveCurrentLayerDown()
     {
         images.selected()->moveCurrentLayerDown();
     }
+}
+
+bool Program::SetUp()
+{
+    ImGuiIO &io = ImGui::GetIO();
+
+    io.Fonts->AddFontFromFileTTF("imgui/misc/fonts/Roboto-Medium.ttf", 16.0f);
+
+    ImFontConfig config;
+    config.MergeMode = true;
+    config.PixelSnapH = true;
+
+    static const ImWchar icons_ranges_fontawesome[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
+    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FA, 16.0f, &config, icons_ranges_fontawesome);
+
+    static const ImWchar icons_ranges_googleicon[] = {ICON_MIN_MD, ICON_MAX_MD, 0};
+    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_MD, 16.0f, &config, icons_ranges_googleicon);
+
+    brushes.init();
+
+    imageShader.init(vertexGlsl.c_str(), fragmentGlsl.c_str());
+    backgroundShader.init(vertexBlocksGlsl.c_str(), fragmentBlocksGlsl.c_str());
+    buffer.init();
+
+    newImage();
+
+    return true;
 }
 
 void Program::Render()
@@ -368,9 +367,9 @@ void Program::Render()
             ImGui::Begin("toolbox", &state.show_toolbar, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
                 ImGui::SetWindowPos(ImVec2(0, menubarHeight + optionsbarHeight));
-                ImGui::SetWindowSize(ImVec2(toolboxWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
+                ImGui::SetWindowSize(ImVec2(float(toolboxWidth), float(state.height - menubarHeight - optionsbarHeight - statebarHeight)));
 
-                for (int i = 0; i < tools.toolCount(); i++)
+                for (size_t i = 0; i < tools.toolCount(); i++)
                 {
                     ImGui::PushID(i);
                     ImGui::PushStyleColor(ImGuiCol_Button, tools.isSelected(i) ? ImVec4() : ImGui::GetStyle().Colors[ImGuiCol_Button]);
@@ -402,8 +401,8 @@ void Program::Render()
 
             ImGui::Begin("dockbar", &(state.show_dockbar), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(state.width - dockbarWidth, menubarHeight + optionsbarHeight));
-                ImGui::SetWindowSize(ImVec2(dockbarWidth, state.height - menubarHeight - optionsbarHeight - statebarHeight));
+                ImGui::SetWindowPos(ImVec2(float(state.width - dockbarWidth), float(menubarHeight + optionsbarHeight)));
+                ImGui::SetWindowSize(ImVec2(float(dockbarWidth), float(state.height - menubarHeight - optionsbarHeight - statebarHeight)));
 
                 static bool colorOptionsOpen = true;
                 if (ImGui::CollapsingHeader("Color options", &colorOptionsOpen, ImGuiTreeNodeFlags_DefaultOpen))
@@ -456,8 +455,14 @@ void Program::Render()
                                 if (ImGui::Button(layer->_name.c_str(), ImVec2(-1, 30))) images.selected()->selectLayer(i);
                                 ImGui::PopStyleColor(1);
 
-                                ImGui::SliderFloat("Alpha", &(layer->_alpha), 0.0f, 1.0f);
-                                ImGui::Combo("Mode", &(layer->_alphaMode), "Normal\0Darken\0Lighten\0Hue\0Saturation\0Color\0Lumminance\0Multiply\0Screen\0Dissolve\0Overlay\0Hard Light\0Soft Light\0Difference\0Dodge\0Burn\0Exclusion\0\0");
+                                if (ImGui::SliderFloat("Alpha", &(layer->_alpha), 0.0f, 1.0f))
+                                {
+                                    layer->setDirty();
+                                }
+                                if (ImGui::Combo("Mode", &(layer->_alphaMode), "Normal\0Darken\0Lighten\0Hue\0Saturation\0Color\0Lumminance\0Multiply\0Screen\0Dissolve\0Overlay\0Hard Light\0Soft Light\0Difference\0Dodge\0Burn\0Exclusion\0\0"))
+                                {
+                                    layer->setDirty();
+                                }
 
                                 ImGui::TreePop();
                             }
@@ -483,8 +488,8 @@ void Program::Render()
 
             ImGui::Begin("statusbar", &(state.show_content), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::SetWindowPos(ImVec2(0, state.height - statebarHeight));
-                ImGui::SetWindowSize(ImVec2(state.width, statebarHeight));
+                ImGui::SetWindowPos(ImVec2(0.0f, float(state.height - statebarHeight)));
+                ImGui::SetWindowSize(ImVec2(float(state.width), float(statebarHeight)));
 
                 ImGui::Columns(3);
                 ImGui::Text("status bar");
@@ -539,7 +544,7 @@ void Program::onMouseMove(int x, int y)
     if (images.selected() != nullptr)
     {
         auto img = images.selected();
-        auto zoom = glm::scale(glm::mat4(), glm::vec3(state.zoom / 100.0f));
+        auto zoom = glm::scale(glm::mat4(1.0f), glm::vec3(state.zoom / 100.0f));
         auto translate = glm::translate(zoom, glm::vec3(state.translatex, -state.translatey, 0.0f));
         auto projection = glm::ortho(-(state.width / 2.0f), (state.width / 2.0f), (state.height / 2.0f), -(state.height / 2.0f));
 
