@@ -12,7 +12,7 @@ find_package(OpenGL REQUIRED)
 add_library(nfd
     nativefiledialog/src/nfd_common.c
     nativefiledialog/src/nfd_win.cpp
-    )
+)
 
 target_include_directories(nfd
     PRIVATE nativefiledialog/src/include
@@ -26,20 +26,20 @@ add_library(imgui
     imgui/backends/imgui_impl_glfw.cpp
     imgui/backends/imgui_impl_opengl3.cpp
     glad.c
-    )
+)
 
 target_include_directories(imgui
     PRIVATE include
     PRIVATE imgui
-    )
+)
 
 target_link_libraries(imgui
     PRIVATE glfw
-    )
+)
 
 target_compile_definitions(imgui
     PUBLIC IMGUI_USE_WCHAR32
-    )
+)
 
 add_executable(imaditor
     actions/baseaction.cpp
@@ -76,13 +76,13 @@ add_executable(imaditor
     glprogram.cpp
     glprogram.h
     state.h
-    )
+)
 
 target_include_directories(imaditor
     PRIVATE include
     PRIVATE imgui
     PRIVATE nativefiledialog/src/include
-    )
+)
 
 target_link_libraries(imaditor
     imgui
@@ -90,12 +90,12 @@ target_link_libraries(imaditor
     glfw
     glm
     ${OPENGL_LIBRARIES}
-    )
+)
 
 target_compile_features(imaditor
     PRIVATE cxx_auto_type
     PRIVATE cxx_nullptr
     PRIVATE cxx_range_for
     PRIVATE cxx_thread_local
-    )
+)
 

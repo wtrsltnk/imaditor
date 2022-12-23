@@ -17,7 +17,6 @@
 #include "glarraybuffer.h"
 #include "glprogram.h"
 #include "images.h"
-#include "shader.h"
 #include "state.h"
 #include "tools.h"
 
@@ -486,7 +485,7 @@ void Program::Render()
             }
             ImGui::End();
 
-            ImGui::Begin("statusbar", &(state.show_content), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("statusbar", &(state.show_content), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             {
                 ImGui::SetWindowPos(ImVec2(0.0f, float(state.height - statebarHeight)));
                 ImGui::SetWindowSize(ImVec2(float(state.width), float(statebarHeight)));
@@ -510,7 +509,11 @@ void Program::Render()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Program::onKeyAction(int key, int scancode, int action, int mods)
+void Program::onKeyAction(
+    int key,
+    int scancode,
+    int action,
+    int mods)
 {
     (void)key;
     (void)scancode;
@@ -530,8 +533,21 @@ bool isMouseInContent()
     return true;
 }
 
-void Program::onMouseMove(int x, int y)
+void Program::onMouseMove(
+    int x,
+    int y)
 {
+    if (state.mousePanning)
+    {
+        state.translatex += ((x - state.mousex) * (100.0f / state.zoom));
+        state.translatey += ((y - state.mousey) * (100.0f / state.zoom));
+
+        state.mousex = x;
+        state.mousey = y;
+
+        return;
+    }
+
     state.mousex = x;
     state.mousey = y;
 
@@ -548,9 +564,10 @@ void Program::onMouseMove(int x, int y)
         auto translate = glm::translate(zoom, glm::vec3(state.translatex, -state.translatey, 0.0f));
         auto projection = glm::ortho(-(state.width / 2.0f), (state.width / 2.0f), (state.height / 2.0f), -(state.height / 2.0f));
 
-        auto pp = glm::unProject(glm::vec3(x, y, 0.0f),
-                                 translate, projection,
-                                 glm::vec4(0.0f, 0.0f, state.width, state.height));
+        auto pp = glm::unProject(
+            glm::vec3(x, y, 0.0f),
+            translate, projection,
+            glm::vec4(0.0f, 0.0f, state.width, state.height));
 
         state.mouseImagex = pp.x + (img->_size[0] / 2.0f);
         state.mouseImagey = -(pp.y - (img->_size[1] / 2.0f));
@@ -559,10 +576,13 @@ void Program::onMouseMove(int x, int y)
     }
 }
 
-void Program::onMouseButton(int button, int action, int mods)
+void Program::onMouseButton(
+    int button,
+    int action,
+    int mods)
 {
     state.mousePanning = false;
-    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS && mods & GLFW_MOD_SHIFT)
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
     {
         state.mousePanning = true;
         return;
@@ -577,39 +597,45 @@ void Program::onMouseButton(int button, int action, int mods)
     auto fac = tools.selectedTool()._actionFactory;
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
     {
-        fac->PrimaryMouseButtonDown(images.selected(),
-                                    mods & GLFW_MOD_SHIFT,
-                                    mods & GLFW_MOD_CONTROL,
-                                    mods & GLFW_MOD_ALT,
-                                    mods & GLFW_MOD_SUPER);
+        fac->PrimaryMouseButtonDown(
+            images.selected(),
+            mods & GLFW_MOD_SHIFT,
+            mods & GLFW_MOD_CONTROL,
+            mods & GLFW_MOD_ALT,
+            mods & GLFW_MOD_SUPER);
     }
     else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
     {
-        fac->PrimaryMouseButtonUp(images.selected(),
-                                  mods & GLFW_MOD_SHIFT,
-                                  mods & GLFW_MOD_CONTROL,
-                                  mods & GLFW_MOD_ALT,
-                                  mods & GLFW_MOD_SUPER);
+        fac->PrimaryMouseButtonUp(
+            images.selected(),
+            mods & GLFW_MOD_SHIFT,
+            mods & GLFW_MOD_CONTROL,
+            mods & GLFW_MOD_ALT,
+            mods & GLFW_MOD_SUPER);
     }
     else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
-        fac->SecondaryMouseButtonUp(images.selected(),
-                                    mods & GLFW_MOD_SHIFT,
-                                    mods & GLFW_MOD_CONTROL,
-                                    mods & GLFW_MOD_ALT,
-                                    mods & GLFW_MOD_SUPER);
+        fac->SecondaryMouseButtonUp(
+            images.selected(),
+            mods & GLFW_MOD_SHIFT,
+            mods & GLFW_MOD_CONTROL,
+            mods & GLFW_MOD_ALT,
+            mods & GLFW_MOD_SUPER);
     }
     else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
     {
-        fac->SecondaryMouseButtonUp(images.selected(),
-                                    mods & GLFW_MOD_SHIFT,
-                                    mods & GLFW_MOD_CONTROL,
-                                    mods & GLFW_MOD_ALT,
-                                    mods & GLFW_MOD_SUPER);
+        fac->SecondaryMouseButtonUp(
+            images.selected(),
+            mods & GLFW_MOD_SHIFT,
+            mods & GLFW_MOD_CONTROL,
+            mods & GLFW_MOD_ALT,
+            mods & GLFW_MOD_SUPER);
     }
 }
 
-void Program::onScroll(int x, int y)
+void Program::onScroll(
+    int x,
+    int y)
 {
     (void)x;
 
@@ -623,12 +649,21 @@ void Program::onScroll(int x, int y)
     }
     else
     {
+        auto oldZoom = state.zoom;
+
         state.zoom += (y * 5);
         if (state.zoom < 10) state.zoom = 10;
+
+        auto centerX = state.width / 2;
+        auto centerY = state.height / 2;
+        state.translatex -= ((centerX - state.mousex) * ((oldZoom - state.zoom) / 200.0f));
+        state.translatey -= ((centerY - state.mousey) * ((oldZoom - state.zoom) / 200.0f));
     }
 }
 
-void Program::onResize(int width, int height)
+void Program::onResize(
+    int width,
+    int height)
 {
     state.width = width;
     state.height = height;
@@ -641,35 +676,53 @@ void Program::onResize(int width, int height)
 void Program::CleanUp()
 {}
 
-void Program::KeyActionCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
+void Program::KeyActionCallback(
+    GLFWwindow *window,
+    int key,
+    int scancode,
+    int action,
+    int mods)
 {
     auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onKeyAction(key, scancode, action, mods);
 }
 
-void Program::CursorPosCallback(GLFWwindow *window, double x, double y)
+void Program::CursorPosCallback(
+    GLFWwindow *window,
+    double x,
+    double y)
 {
     auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onMouseMove(int(x), int(y));
 }
 
-void Program::ScrollCallback(GLFWwindow *window, double x, double y)
+void Program::ScrollCallback(
+    GLFWwindow *window,
+    double x,
+    double y)
 {
     auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onScroll(int(x), int(y));
 }
 
-void Program::MouseButtonCallback(GLFWwindow *window, int button, int action, int mods)
+void Program::MouseButtonCallback(
+    GLFWwindow *window,
+    int button,
+    int action,
+    int mods)
 {
     auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
     if (app != nullptr) app->onMouseButton(button, action, mods);
 }
 
-void Program::ResizeCallback(GLFWwindow *window, int width, int height)
+void Program::ResizeCallback(
+    GLFWwindow *window,
+    int width,
+    int height)
 {
     auto app = static_cast<Program *>(glfwGetWindowUserPointer(window));
 
